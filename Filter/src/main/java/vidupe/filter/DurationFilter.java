@@ -12,7 +12,7 @@ public class DurationFilter
         int visit[] = new int[files.size()];
 
         for(int i=0;i<(files.size()-1);i++){
-            if((files.get(i).getDuration() - files.get(i+1).getDuration())<=60000){
+            if((files.get(i).getDuration() - files.get(i+1).getDuration())==0){
                 visit[i] = 1;
                 visit[i+1]=1;
             }

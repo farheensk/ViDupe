@@ -8,6 +8,7 @@ import com.google.api.core.ApiFutures;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
+import com.google.cloud.datastore.*;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Publisher;
@@ -25,31 +26,44 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.URL;
 import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 @WebServlet("/filter")
 public class FilterDrive extends HttpServlet {
-    public void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+    public static void publishMessages(Map<String,String> attributes) throws Exception {
+        // [START pubsub_publish]
+        TopicName topicName = TopicName.of("winter-pivot-192220", "filter-topic");
+        Publisher publisher = null;
+        List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
+
+        try {
+            // Create a publisher instance with default settings bound to the topic
+            publisher = Publisher.newBuilder(topicName).build();
+            PubsubMessage pubsubMessage = PubsubMessage.newBuilder().putAllAttributes(attributes).build();
+            ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
+            messageIdFutures.add(messageIdFuture);
+
+        } finally {
+            // wait on any pending publish requests.
+            List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
+
+            for (String messageId : messageIds) {
+                System.out.println("published with message ID: " + messageId);
+            }
+
+        }
+    }
+
+    private static VideoMetaData getMetaData(VideoMetaDataBuilder builder, String id, String name, String description, long size, long duration, long height, long width) {
+        return builder.id(id).name(name).description(description).videoSize(size).duration(duration).height(height).width(width).build();
+    }
+
+    public void doGet(HttpServletRequest request, HttpServletResponse response) {
         try {
 
             StringBuilder display = receiveMessages();
-//            List<VideoMetaData> listFiles= filter(attributesReceived);
-//
-//            StringBuilder display = new StringBuilder("default");
-//            for(VideoMetaData videoMetaData:listFiles){
-//                display.append(videoMetaData.getName());
-//                display.append(videoMetaData.getDuration());
-//                display.append(videoMetaData.getId());
-//                display.append(videoMetaData.getVideoSize());
-//            }
-//
             response.getWriter().print(display);
         } catch (Exception e) {
             e.printStackTrace();
@@ -60,8 +74,6 @@ public class FilterDrive extends HttpServlet {
         List<VideoMetaData>  filteredMetaData = null;
         try{
             String accessToken = attributesReceived.get("access_token");
-            URL url = new URL("https://www.googleapis.com/oauth2/v1/userinfo?access_token=" + accessToken);
-            URLConnection conn = url.openConnection();
             GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken);
 
             Drive drive = new Drive.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
@@ -76,7 +88,7 @@ public class FilterDrive extends HttpServlet {
             List<Long> width_list = new ArrayList<>();
             for (File file : files) {
                 String type = file.getMimeType();
-                if(Pattern.matches("video/\\D*", type)){
+                if(Pattern.matches("video/.*", type)){
 
 
                     VideoMetaDataBuilder builder = new VideoMetaDataBuilder();
@@ -92,10 +104,6 @@ public class FilterDrive extends HttpServlet {
             }
             DurationFilter filter  = new DurationFilter();
             filteredMetaData = filter.filterOutDurations(metaDataList);
-//            Long minHeigth = Collections.min(filteredMetaData, new MapComparator("height")).getHeight();
-//            Long minWidth = Collections.min(filteredMetaData, new MapComparator("width")).getWidth();
-
-
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -104,37 +112,7 @@ public class FilterDrive extends HttpServlet {
         return filteredMetaData;
     }
 
-    private static VideoMetaData getMetaData(VideoMetaDataBuilder builder, String id, String name, String description, long size, long duration, long height, long width) {
-        return builder.id(id).name(name).description(description).videoSize(size).duration(duration).height(height).width(width).build();
-    }
-
-    public static void publishMessages(Map<String,String> attributes) throws Exception {
-        // [START pubsub_publish]
-        TopicName topicName = TopicName.of("winter-pivot-192220", "frontend-topic");
-        Publisher publisher = null;
-        List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
-
-        try {
-            // Create a publisher instance with default settings bound to the topic
-            publisher = Publisher.newBuilder(topicName).build();
-            PubsubMessage pubsubMessage = PubsubMessage.newBuilder().putAllAttributes(attributes).build();
-
-            // Once published, returns a server-assigned message id (unique within the topic)
-            ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
-            messageIdFutures.add(messageIdFuture);
-
-        } finally {
-            // wait on any pending publish requests.
-            List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
-
-            for (String messageId : messageIds) {
-                System.out.println("published with message ID: " + messageId);
-            }
-
-        }
-    }
-
-    public StringBuilder receiveMessages() throws InterruptedException {
+    public StringBuilder receiveMessages() {
         TopicName topic = TopicName.of("winter-pivot-192220", "frontend-topic");
         SubscriptionName subscription = SubscriptionName.of("winter-pivot-192220", "filter-subscription");
         StringBuilder display = new StringBuilder("default");
@@ -145,51 +123,71 @@ public class FilterDrive extends HttpServlet {
                         Map<String, String> attributesMap = message.getAttributesMap();
                         //attributesReceived.putAll(attributesMap);
                         List<VideoMetaData> listFiles= filter(attributesMap);
-                        Map<String,String> attributes=null;
+                        Map<String,String> attributes;
+                        Long minHeigth = Collections.min(listFiles, new MapComparator("height")).getHeight();
+                        Long minWidth = Collections.min(listFiles, new MapComparator("width")).getWidth();
+                        Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+
+//                      // Create a Key factory to construct keys associated with this project.
+                        KeyFactory keyFactory = datastore.newKeyFactory().setNamespace("user-video-info").setKind(attributesMap.get("id"));
 
                         for(VideoMetaData videoMetaData:listFiles){
-                            attributes=new HashMap<String, String>();
+
+                            createEntity(datastore,keyFactory,videoMetaData);
+                            attributes= new HashMap<>();
                             attributes.put("access_token",attributesMap.get("access_token"));
                             attributes.put("video_id",videoMetaData.getId());
                             attributes.put("video_name",videoMetaData.getName());
                             attributes.put("video_size",String.valueOf(videoMetaData.getVideoSize()));
-                            display.append(videoMetaData.getName());
-                            display.append(videoMetaData.getDuration());
-                            display.append(videoMetaData.getId());
-                            display.append(videoMetaData.getVideoSize());
+                            attributes.put("video_duration",String.valueOf(videoMetaData.getDuration()));
+
+                            attributes.put("min_height",minHeigth.toString());
+                            attributes.put("min_width",minWidth.toString());
+
+                            try {
+                                publishMessages(attributes);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
                         }
-
-
-
                         consumer.ack();
                     }
                 };
-        Subscriber subscriber = null;
-        try {
-            subscriber = Subscriber.newBuilder(subscription, receiver).build();
-            subscriber.addListener(
-                    new Subscriber.Listener() {
-                        @Override
-                        public void failed(Subscriber.State from, Throwable failure) {
-                            // Handle failure. This is called when the Subscriber encountered a fatal error and is shutting down.
-                            System.err.println(failure);
-                        }
-                    },
-                    MoreExecutors.directExecutor());
-            subscriber.startAsync().awaitRunning();
+        Subscriber subscriber = Subscriber.newBuilder(subscription, receiver).build();
+        subscriber.addListener(
+                new Subscriber.Listener() {
+                    @Override
+                    public void failed(Subscriber.State from, Throwable failure) {
+                        // Handle failure. This is called when the Subscriber encountered a fatal error and is shutting down.
+                        System.err.println(failure);
+                    }
+                },
+                MoreExecutors.directExecutor());
+        subscriber.startAsync().awaitRunning();
 
-            // In this example, we will pull messages for one minute (60,000ms) then stop.
-            // In a real application, this sleep-then-stop is not necessary.
-            // Simply call stopAsync().awaitTerminated() when the server is shutting down, etc.
-            Thread.sleep(60000);
-        } finally {
-            if (subscriber != null) {
-                subscriber.stopAsync().awaitTerminated();
-            }
-        }
         return display;
 
     }
+
+    private void createEntity(Datastore datastore, KeyFactory keyFactory,VideoMetaData videoMetaData) {
+//        Key key = datastore.allocateId(keyFactory.newKey(videoMetaData.getId()));
+//        Entity task = Entity.newBuilder(key)
+//                .set("duration",videoMetaData.getDuration())
+//                .set("hashes","")
+//                .set("done", false)
+//                .build();
+//        datastore.put(task);
+
+        Key key = keyFactory.newKey(videoMetaData.getId());
+        Entity task = Entity.newBuilder(key)
+                .set("video-name",videoMetaData.getName())
+                .set("duration", videoMetaData.getDuration())
+                .set("hashes","")
+                .set("done", false)
+                .build();
+        datastore.put(task);
+    }
+
 
     private StringBuilder readFromUrl(URLConnection conn) throws IOException {
         try(BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {

@@ -1,13 +1,12 @@
 package vidupe.frontend;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
-import com.google.api.services.drive.Drive;
+import com.google.cloud.datastore.*;
 import com.google.cloud.pubsub.v1.Publisher;
-import com.google.pubsub.v1.*;
+import com.google.gson.Gson;
+import com.google.pubsub.v1.PubsubMessage;
+import com.google.pubsub.v1.TopicName;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -20,7 +19,10 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @WebServlet("/login")
 public class Login extends HttpServlet{
@@ -38,26 +40,37 @@ public class Login extends HttpServlet{
             writer.write(urlParameters);
             writer.flush();
             StringBuilder content = readFromUrl(conn);
-            BufferedReader reader;
-            String line;
             String accessToken = GsonParser.getJsonElementString("access_token", content.toString());
-
-//            url = new URL("https://www.googleapis.com/oauth2/v1/userinfo?access_token=" + accessToken);
-//            conn = url.openConnection();
-//            GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken);
-//            Drive drive = new Drive.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
-//                    .setApplicationName("Duplicate video Detection").build();
-
-            Map<String,String> attributes=new HashMap<String, String>();
+            url = new URL("https://www.googleapis.com/oauth2/v1/userinfo?access_token=" + accessToken);
+            conn = url.openConnection();
+            StringBuilder content1 = readFromUrl(conn);
+            GoogleAccount data = new Gson().fromJson(content1.toString(), GoogleAccount.class);
+            Map<String,String> attributes= new HashMap<>();
             attributes.put("access_token",accessToken);
-            //response.getWriter().print(drive);
-
+            attributes.put("id",data.getId());
+            attributes.put("email",data.getEmail());
             publishMessages(attributes);
+            createEntity(data);
+            response.getWriter().print(data.getEmail()+ " "+accessToken);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
 
+    }
+
+    private void createEntity(GoogleAccount data) {
+
+        Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+        Key key = datastore.newKeyFactory().setNamespace("vidupe-users").setKind("users").newKey(data.getEmail());
+
+        Entity task = Entity.newBuilder(key)
+                .set("User-id",data.getId())
+                .set("Name", StringValue.newBuilder(data.getName()).setExcludeFromIndexes(true).build())
+                .set("Email-id",data.getEmail())
+                .set("done", false)
+                .build();
+        datastore.put(task);
     }
 
     public static void publishMessages(Map<String,String> attributes) throws Exception {
@@ -85,6 +98,8 @@ public class Login extends HttpServlet{
 
         }
     }
+
+
     private StringBuilder readFromUrl(URLConnection conn) throws IOException {
         try(BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
             String line;
