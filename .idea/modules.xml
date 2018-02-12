@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Filter/Filter.iml" filepath="$PROJECT_DIR$/Filter/Filter.iml" />
       <module fileurl="file://$PROJECT_DIR$/Frontend/Frontend.iml" filepath="$PROJECT_DIR$/Frontend/Frontend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/PHashGen/PHashGen.iml" filepath="$PROJECT_DIR$/PHashGen/PHashGen.iml" />
       <module fileurl="file://$PROJECT_DIR$/ViDupe.iml" filepath="$PROJECT_DIR$/ViDupe.iml" />
     </modules>
   </component>

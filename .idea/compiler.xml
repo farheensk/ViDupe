@@ -8,11 +8,13 @@
         <outputRelativeToContentRoot value="true" />
         <module name="Filter" />
         <module name="Frontend" />
+        <module name="PHashGen" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="Filter" target="1.8" />
       <module name="Frontend" target="1.8" />
+      <module name="PHashGen" target="1.8" />
       <module name="ViDupe" target="1.5" />
     </bytecodeTargetLevel>
   </component>
