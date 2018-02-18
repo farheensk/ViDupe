@@ -3,20 +3,22 @@ This privacy policy has been compiled to better serve those who are concerned wi
 
 What personal information do we collect from the people that visit our blog, website or app?
 
-We do not collect information from visitors of our site.
-to access video files present in google drive or other details to help you with your experience.
+We collect user information, and asks the user to grant full drive access to the google drive.
+This is because the webapplication needs to access the video files present in google drive or other details to detect duplicate video files present in their drives. Once the duplicates are detected, we ask user to take necessary action. 
+Hence, this application is used to optimize google drive space.
 
 When do we collect information?
 
-We collect information from you when you or enter information on our site.
+We collect information from you when you login into our site using google credentials.
 
 
 How do we use your information?
 
-We may use the information we collect from you when you register, make a purchase, sign up for our newsletter, respond to a survey or marketing communication, surf the website, or use certain other site features in the following ways:
-
-      • To personalize your experience and to allow us to deliver the type of content and product offerings in which you are most interested.
-
+We use your information as follows:
+     • User details to store in our secured database. (Note: only email address and video files information is s
+     • Video files information is stored to reduce the processing time of the returning users.
+     • Once the duplicates are detected, we ask user to take necessary action. 
+     
 How do we protect your information?
 
 We do not use vulnerability scanning and/or scanning to PCI standards.
