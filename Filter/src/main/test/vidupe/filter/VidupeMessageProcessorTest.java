@@ -1,0 +1,67 @@
+package vidupe.filter;
+
+import com.google.api.client.util.DateTime;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
+import org.junit.After;
+import org.junit.Test;
+import vidupe.filter.constants.Constants;
+
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+public class VidupeMessageProcessorTest {
+
+    private static final String CLIENT_ID = "123456";
+    private Datastore datastore;
+    private VidupeStoreManager vidupeStoreManager;
+    private List<String> keyList = new LinkedList<>();
+
+    public VidupeMessageProcessorTest() {
+        DatastoreOptions.Builder optionsBuilder = DatastoreOptions.newBuilder();
+        DatastoreOptions datastoreOptions = optionsBuilder.setNamespace(Constants.NAMESPACE).build();
+        this.datastore = datastoreOptions.getService();
+        this.vidupeStoreManager = new VidupeStoreManager(datastore);
+    }
+
+    @Test
+    public void sendToHashGen() {
+        vidupeStoreManager = new VidupeStoreManager(this.datastore);
+        VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
+        String id = getKey();
+        DateTime dateTime = DateTime.parseRfc3339("2018-02-23T00:00:00Z");
+        VideoMetaData videoMetaData = createVideoMetaData(id, dateTime);
+        assertTrue(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+        assertFalse(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+        //assertFalse(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+    }
+
+
+    private VideoMetaData createVideoMetaData(String id, DateTime dateTime) {
+        VideoMetaDataBuilder builder = new VideoMetaDataBuilder();
+        return builder.videoSize(100L).duration(10L).height(100L).dateModified(dateTime)
+                .width(100L).id(id).description("crap").name("test-name").build();
+    }
+
+    private String getKey() {
+        Random r = new Random();
+        int k = r.nextInt(1000);
+        String key = String.valueOf(k);
+        keyList.add(key);
+        return key;
+
+    }
+
+    @After
+    public void cleanUp() {
+        for(String k : keyList) {
+            vidupeStoreManager.deleteEntity(k, CLIENT_ID);
+        }
+    }
+
+
+}

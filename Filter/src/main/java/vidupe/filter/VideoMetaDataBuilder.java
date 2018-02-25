@@ -1,11 +1,14 @@
 package vidupe.filter;
 
+import com.google.api.client.util.DateTime;
+
 public class VideoMetaDataBuilder {
 
 
     private String name;
     private String id;
     private String description;
+    private DateTime dateModified;
     private long videoSize;
     private long duration;
     private long height;
@@ -29,6 +32,11 @@ public class VideoMetaDataBuilder {
         return this;
     }
 
+    public VideoMetaDataBuilder dateModified(DateTime dateModified){
+        this.dateModified = dateModified;
+        return this;
+    }
+
     public VideoMetaDataBuilder videoSize(long videoSize) {
         this.videoSize = videoSize;
         return this;
@@ -49,7 +57,7 @@ public class VideoMetaDataBuilder {
     }
 
     public VideoMetaData build() {
-        VideoMetaData videoMetaData = new VideoMetaData(id, name, description, videoSize, duration, height, width);
+        VideoMetaData videoMetaData = new VideoMetaData(id, name, description, dateModified, videoSize, duration, height, width);
         this.clear();
         return videoMetaData;
     }

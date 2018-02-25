@@ -2,6 +2,7 @@ package vidupe.frontend;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.gson.Gson;
@@ -46,11 +47,13 @@ public class Login extends HttpServlet{
             StringBuilder content1 = readFromUrl(conn);
             GoogleAccount data = new Gson().fromJson(content1.toString(), GoogleAccount.class);
             Map<String,String> attributes= new HashMap<>();
+            String ifExists = createEntity(data);
             attributes.put("access_token",accessToken);
-            attributes.put("id",data.getId());
+            attributes.put("client_id",data.getId());
             attributes.put("email",data.getEmail());
+            attributes.put("ifExists",ifExists);
             publishMessages(attributes);
-            createEntity(data);
+
             response.getWriter().print(data.getEmail()+ " "+accessToken);
         } catch (Exception e) {
             e.printStackTrace();
@@ -59,18 +62,27 @@ public class Login extends HttpServlet{
 
     }
 
-    private void createEntity(GoogleAccount data) {
+    private String createEntity(GoogleAccount data) {
 
         Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-        Key key = datastore.newKeyFactory().setNamespace("vidupe-users").setKind("users").newKey(data.getEmail());
-
+        Key key = datastore.newKeyFactory().setNamespace("vidupe").setKind("users").newKey(data.getEmail());
+        String ifExists = "false";
         Entity task = Entity.newBuilder(key)
                 .set("User-id",data.getId())
                 .set("Name", StringValue.newBuilder(data.getName()).setExcludeFromIndexes(true).build())
                 .set("Email-id",data.getEmail())
+                .set("created", Timestamp.now())
                 .set("done", false)
                 .build();
-        datastore.put(task);
+        try {
+            datastore.add(task);
+        } catch (DatastoreException ex) {
+            if ("ALREADY_EXISTS".equals(ex.getReason())) {
+                // entity.getKey() already exists
+                ifExists = "true";
+            }
+        }
+      return ifExists;
     }
 
     public static void publishMessages(Map<String,String> attributes) throws Exception {
