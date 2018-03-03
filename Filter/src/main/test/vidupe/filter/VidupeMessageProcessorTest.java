@@ -29,21 +29,36 @@ public class VidupeMessageProcessorTest {
     }
 
     @Test
-    public void sendToHashGen() {
+    public void shouldSendToHashGen() {
         vidupeStoreManager = new VidupeStoreManager(this.datastore);
         VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
         String id = getKey();
-        DateTime dateTime = DateTime.parseRfc3339("2018-02-23T00:00:00Z");
-        VideoMetaData videoMetaData = createVideoMetaData(id, dateTime);
+        DateTime dateModified = DateTime.parseRfc3339("2018-02-23T00:00:00Z");
+        DateTime nextDateModified = DateTime.parseRfc3339("2018-02-23T10:00:00Z");
+        VideoMetaData videoMetaData = createVideoMetaData(id, dateModified);
         assertTrue(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+        videoMetaData = createVideoMetaData(id, nextDateModified);
+        assertTrue(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+        videoMetaData = createVideoMetaData(id, dateModified);
         assertFalse(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
-        //assertFalse(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+    }
+
+    @Test
+    public void shouldNotSendToHashGen() {
+        vidupeStoreManager = new VidupeStoreManager(this.datastore);
+        VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
+        String id = getKey();
+        DateTime dateModified = DateTime.parseRfc3339("2018-02-23T00:00:00Z");
+
+        VideoMetaData videoMetaData = createVideoMetaData(id, dateModified);
+        vidupeStoreManager.createEntity(videoMetaData, CLIENT_ID);
+        assertFalse(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
     }
 
 
+
     private VideoMetaData createVideoMetaData(String id, DateTime dateTime) {
-        VideoMetaDataBuilder builder = new VideoMetaDataBuilder();
-        return builder.videoSize(100L).duration(10L).height(100L).dateModified(dateTime)
+        return VideoMetaData.builder().videoSize(100L).duration(10L).height(100L).dateModified(dateTime)
                 .width(100L).id(id).description("crap").name("test-name").build();
     }
 

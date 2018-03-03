@@ -6,6 +6,7 @@
       <module fileurl="file://$PROJECT_DIR$/Frontend/Frontend.iml" filepath="$PROJECT_DIR$/Frontend/Frontend.iml" />
       <module fileurl="file://$PROJECT_DIR$/PHashGen/PHashGen.iml" filepath="$PROJECT_DIR$/PHashGen/PHashGen.iml" />
       <module fileurl="file://$PROJECT_DIR$/ViDupe.iml" filepath="$PROJECT_DIR$/ViDupe.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Video_FFmpeg/Video_FFmpeg.iml" filepath="$PROJECT_DIR$/Video_FFmpeg/Video_FFmpeg.iml" />
     </modules>
   </component>
 </project>

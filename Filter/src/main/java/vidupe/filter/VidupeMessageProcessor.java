@@ -16,7 +16,6 @@ import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
-import vidupe.filter.constants.EntityProperties;
 import vidupe.message.HashGenMessage;
 
 import java.util.ArrayList;
@@ -27,15 +26,14 @@ import java.util.regex.Pattern;
 
 public class VidupeMessageProcessor implements MessageReceiver {
 
-    public static List<VideoMetaData> list;
     private VidupeStoreManager vidupeStoreManager;
 
     public VidupeMessageProcessor(VidupeStoreManager vidupeStoreManager) {
         this.vidupeStoreManager = vidupeStoreManager;
     }
 
-    private static VideoMetaData getMetaData(VideoMetaDataBuilder builder, String id, String name, String description, DateTime dateModified, long size, long duration, long height, long width) {
-        return builder.id(id).name(name).description(description).dateModified(dateModified).videoSize(size).duration(duration).height(height).width(width).build();
+    private static VideoMetaData getMetaData(String id, String name, String description, DateTime dateModified, long size, long duration, long height, long width) {
+        return VideoMetaData.builder().id(id).name(name).description(description).dateModified(dateModified).videoSize(size).duration(duration).height(height).width(width).build();
     }
 
     @Override
@@ -45,7 +43,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
         Map<String, String> attributes;
         Long minHeight = Collections.min(listFiles, new MapComparator("height")).getHeight();
         Long minWidth = Collections.min(listFiles, new MapComparator("width")).getWidth();
-        String clientId = attributesMap.get("client_id");
+        String clientId = attributesMap.get("email");
         for (VideoMetaData videoMetaData : listFiles) {
 
             boolean proceedToHashGen = sendToHashGen(clientId, videoMetaData);
@@ -67,7 +65,6 @@ public class VidupeMessageProcessor implements MessageReceiver {
                 }
             }
         }
-        list = listFiles;
 
 
         vidupeStoreManager.deleteAllEntitiesIfNotExistsInDrive(clientId);
@@ -105,13 +102,14 @@ public class VidupeMessageProcessor implements MessageReceiver {
         if(entity == null) {
             Entity entityCreated = vidupeStoreManager.createEntity(videoMetaData, clientId);
             proceedToHashGen = (entityCreated != null);
-        } else {
-            boolean shouldReplaceEntity = vidupeStoreManager.compareEntityTimes(entity, videoMetaData);
+        }
+       else {
+            boolean shouldReplaceEntity = vidupeStoreManager.isModified(entity, videoMetaData);
             if(shouldReplaceEntity) {
                 vidupeStoreManager.putEntity(videoMetaData, clientId);
                 proceedToHashGen = true;
             } else {
-                vidupeStoreManager.resetEntityProperty(entity, EntityProperties.EXISTS_IN_DRIVE, true);
+                vidupeStoreManager.resetEntityProperty(entity, videoMetaData, true);
             }
         }
         return proceedToHashGen;
@@ -137,9 +135,8 @@ public class VidupeMessageProcessor implements MessageReceiver {
                 String type = file.getMimeType();
                 if (Pattern.matches("video/.*", type)) {
 
-                    VideoMetaDataBuilder builder = new VideoMetaDataBuilder();
                     File.VideoMediaMetadata video_Media_MetaData = file.getVideoMediaMetadata();
-                    metaDataList.add(getMetaData(builder, file.getId(), file.getName(), file.getDescription(), file.getModifiedTime(), file.getSize(),
+                    metaDataList.add(getMetaData(file.getId(), file.getName(), file.getDescription(), file.getModifiedTime(), file.getSize(),
                             video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth()));
 
                     height_list.add(video_Media_MetaData.getHeight().longValue());

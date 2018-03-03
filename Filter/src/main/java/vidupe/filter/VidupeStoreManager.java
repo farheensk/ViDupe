@@ -1,6 +1,5 @@
 package vidupe.filter;
 
-import com.google.api.client.util.DateTime;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Iterators;
@@ -24,13 +23,13 @@ public class VidupeStoreManager {
         this.datastore.delete(Iterators.toArray(result, Key.class));
     }
 
-    public Entity createEntity(VideoMetaData videoMetaData, String kind) {
-        Entity entity = fillEntity(videoMetaData, kind);
+    public Entity createEntity(VideoMetaData videoMetaData, String ancestorId) {
+        Entity entity = fillEntity(videoMetaData, ancestorId);
         return datastore.add(entity);
     }
 
     public Entity findByKey(String id, String ancestorId) {
-        System.out.println("Finding key :" + id);
+//        System.out.println("Finding key :" + id);
         Key key = createKey(id, ancestorId);
 
         Query<Entity> query1 = Query.newEntityQueryBuilder()
@@ -46,16 +45,16 @@ public class VidupeStoreManager {
         return e;
     }
 
-    boolean compareTimes(Timestamp created, DateTime dateModified) {
-        long modifiedMillis = dateModified.getValue();
-        long createdMillis = created.getSeconds() * 1000;
-        return createdMillis < modifiedMillis;
-    }
+    public boolean isModified(Entity vidupeEntity, VideoMetaData videoMetaData) {
+        if(videoMetaData.getDateModified() != null){
+            long vidupeLastModified = vidupeEntity.getLong(EntityProperties.VIDEO_LAST_MODIFIED);
+            long driveLastModified = videoMetaData.getDateModified().getValue();
+            return vidupeLastModified < driveLastModified;
+        }
+        else{
+            return false;
+        }
 
-    public boolean compareEntityTimes(Entity video, VideoMetaData videoMetaData) {
-        Timestamp created = video.getTimestamp(EntityProperties.CREATED);
-        DateTime dateModified = videoMetaData.getDateModified();
-        return compareTimes(created, dateModified);
     }
 
     void deleteEntity(String keyName, String clientId) {
@@ -68,30 +67,49 @@ public class VidupeStoreManager {
         return datastore.put(entity);
     }
 
-    private Entity fillEntity(VideoMetaData videoMetaData, String kind) {
+    private Entity fillEntity(VideoMetaData videoMetaData, String ancestorId) {
 
-        Key key = createKey(videoMetaData.getId(), kind);
-
+        Key key = createKey(videoMetaData.getId(), ancestorId);
+        long videoLastModified = getVideoLastModified(videoMetaData);
         return Entity.newBuilder(key)
                 .set(EntityProperties.VIDEO_NAME, videoMetaData.getName())
                 .set(EntityProperties.DURATION, videoMetaData.getDuration())
-                .set(EntityProperties.CREATED, Timestamp.now())
+                .set(EntityProperties.LAST_PROCESSED, Timestamp.now().getSeconds()*1000)
+                .set(EntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(EntityProperties.HASHES, "")
                 .set(EntityProperties.EXISTS_IN_DRIVE, BooleanValue.newBuilder(true).setExcludeFromIndexes(true).build())
                 .set(EntityProperties.PROCESSED, BooleanValue.newBuilder(false).setExcludeFromIndexes(true).build())
                 .build();
     }
 
-    public Key createKey(String keyName, String clientId) {
+    private long getVideoLastModified(VideoMetaData videoMetaData) {
+        long videoLastModified;
+        if(videoMetaData.getDateModified() != null)
+            videoLastModified = videoMetaData.getDateModified().getValue();
+        else
+            videoLastModified = Timestamp.now().getSeconds()*1000;
+        return videoLastModified;
+    }
+
+    public Key createKey(String keyName, String ancestorId) {
         Key key = datastore.newKeyFactory()
                 .setKind("videos")
-                .addAncestors(PathElement.of("user", clientId))
+                .addAncestors(PathElement.of("user", ancestorId))
                 .newKey(keyName);
         return key;
     }
 
-    public void resetEntityProperty(Entity e, String property, boolean value) {
-        Entity newEntity = Entity.newBuilder(e).set(property, value).build();
-        datastore.update(newEntity);
+    public void resetEntityProperty(Entity e, VideoMetaData videoMetaData, boolean value) {
+        long videoLastModified = getVideoLastModified(videoMetaData);
+        Entity task = Entity.newBuilder(e.getKey())
+                .set(EntityProperties.VIDEO_NAME, e.getString(EntityProperties.VIDEO_NAME))
+                .set(EntityProperties.DURATION, e.getLong(EntityProperties.DURATION))
+                .set(EntityProperties.LAST_PROCESSED, e.getLong(EntityProperties.LAST_PROCESSED))
+                .set(EntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
+                .set(EntityProperties.HASHES, e.getString(EntityProperties.HASHES))
+                .set(EntityProperties.EXISTS_IN_DRIVE, value)
+                .set(EntityProperties.PROCESSED, e.getBoolean(EntityProperties.PROCESSED))
+                .build();
+        datastore.put(task);
     }
 }

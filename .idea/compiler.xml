@@ -2,6 +2,7 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
       <profile name="Maven default annotation processors profile" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
@@ -9,12 +10,14 @@
         <module name="Filter" />
         <module name="Frontend" />
         <module name="PHashGen" />
+        <module name="Video_FFmpeg" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="Filter" target="1.8" />
       <module name="Frontend" target="1.8" />
       <module name="PHashGen" target="1.8" />
+      <module name="Video_FFmpeg" target="1.8" />
       <module name="ViDupe" target="1.5" />
     </bytecodeTargetLevel>
   </component>

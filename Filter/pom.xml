@@ -31,10 +31,17 @@
             <artifactId>google-cloud-core</artifactId>
             <version>1.17.0</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.google.api/gax -->
+        <dependency>
+            <groupId>com.google.api</groupId>
+            <artifactId>gax</artifactId>
+            <version>1.19.0</version>
+        </dependency>
+
         <!--<dependency>-->
-            <!--<groupId>org.apache.openejb</groupId>-->
-            <!--<artifactId>javaee-api</artifactId>-->
-            <!--<version>6.0-5</version>-->
+        <!--<groupId>org.apache.openejb</groupId>-->
+        <!--<artifactId>javaee-api</artifactId>-->
+        <!--<version>6.0-5</version>-->
         <!--</dependency>-->
 
         <dependency>
@@ -58,7 +65,7 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-pubsub</artifactId>
-            <version>0.32.0-beta</version>
+            <version>0.35.0-beta</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -80,18 +87,13 @@
         <dependency>
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-drive</artifactId>
-            <version>v3-rev99-1.23.0</version>
+            <version>v3-rev103-1.23.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
                     <artifactId>guava-jdk5</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.google.api</groupId>
-            <artifactId>gax</artifactId>
-            <version>1.18.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud</groupId>
