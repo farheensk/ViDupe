@@ -57,7 +57,7 @@ public class ImagePhash {
         try {
             image1 = p.getHash(new FileInputStream(new File(path1 + "390001.jpg")));
 
-            image2 = p.getHash(new FileInputStream(new File(path2 + "53-370007.jpg")));
+            image2 = p.getHash(new FileInputStream(new File(path2 + "53-370002.jpg")));
             System.out.println(image1 + " " + image2);
             System.out.println("1:2 Score is " + p.distance(image1, image2));
         } catch (Exception e) {

@@ -11,6 +11,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import static java.awt.image.BufferedImage.TYPE_BYTE_GRAY;
 
 /*
 
@@ -25,6 +30,7 @@ public class PHash2 {
 
     private int size = 32;
 
+    private final double PI = 3.1415926535897932;
     private int smallerSize = 8;
 
     public PHash2() {
@@ -66,12 +72,12 @@ public class PHash2 {
     private ColorConvertOp colorConvert = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
     private double[] c;
 
-    private BufferedImage resize(BufferedImage image, int width, int height) {
-        BufferedImage resizedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = resizedImage.createGraphics();
-        g.drawImage(image, 0, 0, width, height, null);
-        g.dispose();
-        return resizedImage;
+    public static double[][] transposeMatrix(double [][] m){
+        double[][] temp = new double[m[0].length][m.length];
+        for (int i = 0; i < m.length; i++)
+            for (int j = 0; j < m[0].length; j++)
+                temp[j][i] = m[i][j];
+        return temp;
     }
 
     private static int getRed(BufferedImage img, int x, int y) {
@@ -84,21 +90,59 @@ public class PHash2 {
         return img;
     }
 
-    private BufferedImage toYCrCb(BufferedImage img, int width, int height){
-        BufferedImage ycb = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        int red = getRed(img, width, height);
-        int green = getGreen(img, width, height);
-        int blue = getBlue(img, width, height);
-        int y = (int)(0.299* red + 0.589* green + 0.114* blue);
-        int cb = (int)(128-0.169*red - 0.331*green + 0.500*blue);
-        int cr = (int)(128+0.500*red - 0.419*green - 0.081*blue);
+//    private BufferedImage toYCrCb(BufferedImage img, int width, int height){
+//        BufferedImage ycb = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+//        int red = getRed(img, width, height);
+//        int green = getGreen(img, width, height);
+//        int blue = getBlue(img, width, height);
+//        int y = (int)(0.299* red + 0.589* green + 0.114* blue);
+//        int cb = (int)(128-0.169*red - 0.331*green + 0.500*blue);
+//        int cr = (int)(128+0.500*red - 0.419*green - 0.081*blue);
+//
+//
+//        int val = (y<<16) | (cb<<8) | cr;
+//        ycb.setRGB(0, 0 ,val);
+//        System.out.println(red);
+//        return ycb;
+//    }
 
-
-        int val = (y<<16) | (cb<<8) | cr;
-        ycb.setRGB(0, 0 ,val);
-        System.out.println(red);
-        return ycb;
+    private BufferedImage resize(BufferedImage image, int width, int height) {
+        BufferedImage resizedImage = new BufferedImage(width, height, image.getType());
+        Graphics2D g = resizedImage.createGraphics();
+        g.drawImage(image, 0, 0, width, height, null);
+        g.dispose();
+        return resizedImage;
     }
+
+    private BufferedImage toYCrCb(BufferedImage img){
+        Color c;
+        int red;
+        int green;
+        int blue;
+
+        for (int i = 0; i < img.getWidth(); i++) {
+            for (int j = 0; j < img.getHeight(); j++) {
+                c = new Color(img.getRGB(i, j));
+                red = c.getRed();
+                green = c.getGreen();
+                blue = c.getBlue();
+                float Y = (66*red + 129*green + 25*blue + 128)/256 + 16;
+                float Cb = (-38*red - 74*green + 112*blue + 128)/256 + 128;
+                float Cr = (112*red - 94*green - 18*blue + 128)/256 + 128;
+//                int y = (int)(0.299* red + 0.589* green + 0.114* blue);
+//                int cb = (int)(128-0.169*red - 0.331*green + 0.500*blue);
+//                int cr = (int)(128+0.500*red - 0.419*green - 0.081*blue);
+                int resultY = cut(Y, 0, 255);
+                int resultCb = cut(Cb, 0, 255);
+                int resultCr = cut(Cr, 0, 255);
+
+                int val = (resultY<<16) | (resultCb<<8) | resultCr;
+                img.setRGB(i,j,val);
+            }
+        }
+        return img;
+    }
+
 
     private static int getGreen(BufferedImage img, int x, int y) {
         int rgb = img.getRGB(x, y);
@@ -126,50 +170,43 @@ public class PHash2 {
         }
     }
 
+    private int cut(float val, int min, int max) {
+        if(val<min)
+            return min;
+        else if(val>max)
+            return max;
+        return Math.round(val);
+    }
+
     public String getHash(InputStream is) throws Exception {
 
         BufferedImage img = ImageIO.read(is);
+        int channels = img.getColorModel().getNumComponents();
+        if(channels == 3) {
+           img = toYCrCb(img);
+           img = getImageFromOneChannel(img);
+           img = getConvolutedImage(img, getKernel(7, 7, 1.0f));
+         //   img = MeanFilter.applyMeanFilter2(img);
+//            MyCImgFilter cImgFilter = new MyCImgFilter();
+//            img = cImgFilter.myFilter(img);
+//            for(int i=0;i<img.getHeight();i++){
+//                for(int j=0;j<img.getWidth();j++){
+//                    Color c = new Color(img.getRGB(i,j));
+//                    int red = c.getRed();
+//                    int green = c.getGreen();
+//                    int blue = c.getBlue();
+//                }
+//            }
 
-        /* 1. Reduce size.
+        } else if(channels == 4){
+            throw new RuntimeException("Channels =4");
 
-         * Like Average Hash, pHash starts with a small image.
-
-         * However, the image is larger than 8x8; 32x32 is a good size.
-
-         * This is really done to simplify the DCT computation and not
-
-         * because it is needed to reduce the high frequencies.
-
-         */
-
-
-
-        /* 2. Reduce color.
-
-         * The image is reduced to a grayscale just to further simplify
-
-         * the number of computations.
-
-         */
-
-        img = grayscale(img);
-        img = getConvolutedImage(img);
-        img = resize(img, size, size);
-        double[][] vals = new double[size][size];
-
-        for (int x = 0; x < img.getWidth(); x++) {
-
-            for (int y = 0; y < img.getHeight(); y++) {
-                // L = R * 299/1000 + G * 587/1000 + B * 114/1000
-
-                //vals[x][y] = (getRed(img, x, y) * 299 / 1000) + (getGreen(img, x, y) * 587 / 1000) + (getBlue(img, x, y) * 114 / 1000);
-
-                // vals[x][y] = getRed(img,x,y);
-                // vals[x][y] = getGreen(img,x,y);
-                vals[x][y] = getBlue(img,x,y);
-            }
-
+        } else {
+            throw new RuntimeException("Unknown channels");
         }
+
+        img = resize(img, size, size);
+
 
         /* 3. Compute the DCT.
 
@@ -181,78 +218,42 @@ public class PHash2 {
 
          */
 
-        long start = System.currentTimeMillis();
 
-        double[][] dctVals = applyDCT(vals);
+        double[][] dctImage = performDCT(img);
 
-        //System.out.println("DCT "+(System.currentTimeMillis() - start));
+        double[] subsec = unroll(dctImage);
+        double median = getMedian(subsec);
 
-        /* 4. Reduce the DCT.
+//        double avg = total / (double) ((smallerSize * smallerSize -1));
 
-         * This is the magic step. While the DCT is 32x32, just keep the
-
-         * top-left 8x8. Those represent the lowest frequencies in the
-
-         * picture.
-
-         */
-
-        /* 5. Compute the average value.
-
-         * Like the Average Hash, compute the mean DCT value (using only
-
-         * the 8x8 DCT low-frequency values and excluding the first term
-
-         * since the DC coefficient can be significantly different from
-
-         * the other values and will throw off the average).
-
-         */
-
-        double total = 0;
-
-        for (int x = 0; x < smallerSize; x++) {
-
-            for (int y = 0; y < smallerSize; y++) {
-
-                total += dctVals[x][y];
-
-            }
-
-        }
-
-        total -= dctVals[0][0];
-
-        double avg = total / (double) ((smallerSize * smallerSize) - 1);
-
-        /* 6. Further reduce the DCT.
-
-         * This is the magic step. Set the 64 hash bits to 0 or 1
-
-         * depending on whether each of the 64 DCT values is above or
-
-         * below the average value. The result doesn't tell us the
-
-         * actual low frequencies; it just tells us the very-rough
-
-         * relative scale of the frequencies to the mean. The result
-
-         * will not vary as long as the overall structure of the image
-
-         * remains the same; this can survive gamma and color histogram
-
-         * adjustments without a problem.
-
-         */
-        String hash = "";
+        StringBuilder hash = new StringBuilder();
 
         for (int x = 0; x < smallerSize; x++) {
             for (int y = 0; y < smallerSize; y++) {
-                hash += (dctVals[x][y] > avg ? "1" : "0");
+                hash.append(dctImage[x][y] > median ? "1" : "0");
             }
         }
 
-        return hash;
+        return hash.toString();
+    }
+
+    double[][] performDCT(BufferedImage img) {
+        double[][] intensityValues = getIntensityValues(img);
+        double[][] dctVals = phashDCTMatrix(32);
+        double[][] dtValsTranspose = transposeMatrix(dctVals);
+        double[][] dctImage = matrixMultiplication(dctVals,intensityValues,32);
+        dctImage = matrixMultiplication(dctImage,dtValsTranspose, 32);
+        return dctImage;
+    }
+
+    public double getMedian(double[] dctImage) {
+        List<Double> values = new ArrayList<Double>();
+        for (int x = 0; x < dctImage.length; x++) {
+                values.add(dctImage[x]);
+            }
+        Collections.sort(values);
+        double median = values.get((dctImage.length)/2);
+        return median;
     }
 
     private void initCoefficients() {
@@ -262,6 +263,25 @@ public class PHash2 {
             c[i] = 1;
         }
         c[0] = 1 / Math.sqrt(2.0);
+    }
+
+    private double[][] getIntensityValues(BufferedImage img) {
+        double[][] vals = new double[size][size];
+
+        for (int x = 0; x < size; x++) {
+
+            for (int y = 0; y < size; y++) {
+                // L = R * 299/1000 + G * 587/1000 + B * 114/1000
+
+              vals[x][y] = (getRed(img, x, y) * 299 / 1000) + (getGreen(img, x, y) * 587 / 1000) + (getBlue(img, x, y) * 114 / 1000);
+
+                // vals[x][y] = img.getRGB(x,y);
+                // vals[x][y] = getGreen(img,x,y);
+                // vals[x][y] = getRed(img,x,y);
+            }
+
+        }
+        return vals;
     }
 
     private double[][] applyDCT(double[][] f) {
@@ -283,16 +303,108 @@ public class PHash2 {
         return F;
     }
 
-    private BufferedImage getConvolutedImage(BufferedImage img) throws IOException {
-        BufferedImage dstImage = null;
-        float[] sharpen = new float[] {
-                0.1f, 0.1f, 0.1f,
-                0.1f, 0.1f, 0.1f,
-                0.1f, 0.1f, 0.1f
-        };
-        Kernel kernel = new Kernel(3, 3, sharpen);
-        ConvolveOp op = new ConvolveOp(kernel);
+    double[][] phashDCTMatrix(int N){
+        double[][] F = new double[N][N];
+        for(int i=0;i<N;i++){
+            for(int j=0;j<N; j++){
+                F[i][j] = 1/Math.sqrt(N);
+            }
+        }
+        double c1 = Math.sqrt((double)2.0/N);
+
+        for (int x=0;x<N;x++){
+            for (int y=1;y<N;y++){
+                F[x][y] = c1*Math.cos((PI/2/N)*y*(2*x+1));
+            }
+        }
+        return F;
+    }
+
+    BufferedImage getConvolutedImage(BufferedImage img, float[] filter) {
+        BufferedImage dstImage;
+        int height, width;
+        height = width = (int)Math.sqrt(filter.length);
+        Kernel kernel = new Kernel(width, height, filter);
+        ConvolveOp op = new ConvolveOp(kernel, ConvolveOp.EDGE_ZERO_FILL, null);
         dstImage = op.filter(img, null);
         return dstImage;
     }
+
+    float[] getKernel(int height, int width, float value) {
+        int size = height * width;
+        float[] sharpen = new float[size];
+        for(int i = 0; i< size; i++) {
+            sharpen[i] = value/size;
+        }
+        return sharpen;
+    }
+
+    public BufferedImage getGrayScaleFromColor(BufferedImage img) throws IOException {
+        Color c;
+        Color tempColor;
+        int red;
+        int green;
+        int blue;
+
+        for (int x = 0; x < img.getWidth(); x++) {
+            for (int y = 0; y < img.getHeight(); y++) {
+                c = new Color(img.getRGB(x, y));
+                red = c.getRed();
+                //green = c.getGreen();
+                green = 0;
+               // blue = c.getBlue();
+                blue = 0;
+                int grayScaleVal = (int) (0.21 * red + 0.72 * green + 0.07 * blue);
+                tempColor = new Color(grayScaleVal, grayScaleVal, grayScaleVal);
+                img.setRGB(x, y, tempColor.getRGB());
+            }
+        }
+        return img;
+    }
+
+    //TODO: Test case
+    public BufferedImage getImageFromOneChannel(BufferedImage img) {
+        Color c;
+        Color tempColor;
+        int red;
+        for (int x = 0; x < img.getWidth(); x++) {
+            for (int y = 0; y < img.getHeight(); y++) {
+                c = new Color(img.getRGB(x, y));
+                red = c.getRed();
+                tempColor = new Color(red, 0, 0);
+                img.setRGB(x, y, tempColor.getRGB());
+            }
+        }
+        return img;
+    }
+
+    double[] unroll(double[][] img) {
+        double[] result = new double[8];
+        System.arraycopy(img[1], 1, result, 0, 8);
+        return result;
+    }
+
+    private BufferedImage resizeToGray(BufferedImage image, int width, int height) {
+        BufferedImage resizedImage = new BufferedImage(width, height, TYPE_BYTE_GRAY);
+        Graphics2D g = resizedImage.createGraphics();
+        g.drawImage(image, 0, 0, width, height, null);
+        g.dispose();
+        return resizedImage;
+    }
+
+    public double[][] matrixMultiplication(double[][] A, double[][] B, int N){
+        double[][] C = new double[N][N];
+        for (int i = 0; i < N; i++)
+        {
+            for (int j = 0; j < N; j++)
+            {
+                for (int k = 0; k < N; k++)
+                {
+                    C[i][j] = C[i][j] + A[i][k] * B[k][j];
+                }
+            }
+        }
+        return C;
+    }
+
 }
