@@ -40,33 +40,32 @@ public class VidupeMessageProcessor implements MessageReceiver {
     public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
         Map<String, String> attributesMap = message.getAttributesMap();
         List<VideoMetaData> listFiles = filter(attributesMap);
-        Map<String, String> attributes;
         Long minHeight = Collections.min(listFiles, new MapComparator("height")).getHeight();
         Long minWidth = Collections.min(listFiles, new MapComparator("width")).getWidth();
         String clientId = attributesMap.get("email");
+        int messageCount = 0;
         for (VideoMetaData videoMetaData : listFiles) {
 
             boolean proceedToHashGen = sendToHashGen(clientId, videoMetaData);
 
             if (proceedToHashGen) {
                 HashGenMessage hashGenMessage = HashGenMessage.builder().accessToken(attributesMap.get("access_token"))
+                        .email(clientId)
                         .videoDuration(videoMetaData.getDuration())
                         .videoId(videoMetaData.getId())
                         .videoName(videoMetaData.getName())
                         .videoSize(videoMetaData.getVideoSize())
                         .minHeight(minHeight)
                         .minWidth(minWidth).build();
-
-
                 try {
                     publishMessage(hashGenMessage);
+                    messageCount++;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }
-
-
+        vidupeStoreManager.updatePropertyOfUsers(clientId, messageCount);
         vidupeStoreManager.deleteAllEntitiesIfNotExistsInDrive(clientId);
         consumer.ack();
     }

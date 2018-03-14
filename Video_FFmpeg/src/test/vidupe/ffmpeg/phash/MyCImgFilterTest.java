@@ -2,6 +2,10 @@ package vidupe.ffmpeg.phash;
 
 import org.junit.Test;
 
+import java.math.BigInteger;
+
+import static junit.framework.TestCase.assertTrue;
+
 public class MyCImgFilterTest {
 
     @Test
@@ -40,4 +44,34 @@ public class MyCImgFilterTest {
     public void getKernel() {
     }
 
+    private static long parseLong(String s, int base) {
+        return new BigInteger(s, base).longValue();
+    }
+
+    public static long makeLong(String input) {
+        if(input.substring(0,1).equals("1")) {
+            return -1 * (Long.MAX_VALUE - Long.parseLong(input.substring(1), 2) + 1);
+        } else {
+            return Long.parseLong(input, 2);
+        }
+    }
+
+    @Test
+    public void convertToDouble(){
+        String hash = "1000011011100101110100011100000011100110100100011100110101100000";
+        String hash1 ="1111111111111111111111111111111111111111111111111111111111111000";
+        long longHash = parseLong(hash1, 2);
+        System.out.println(longHash);
+        //long hash1Long = 9223372036854775807L;
+        long hash1Long = -8L;
+        String binaryString = Long.toBinaryString(hash1Long);
+
+
+        String zeros = "0000000000000000000000000000000000000000000000000000000000000000"; //String of 64 zeros
+        binaryString = zeros.substring(binaryString.length())+ binaryString;
+        int binaryStringLength = binaryString.length();
+        int hash1Length = hash1.length();
+       assertTrue("lengths not equal",hash1Length == binaryStringLength);
+       assertTrue("Strings not equal",binaryString.equals(hash1));
+    }
 }

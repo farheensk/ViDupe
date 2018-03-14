@@ -8,6 +8,7 @@ import com.google.cloud.pubsub.v1.Publisher;
 import com.google.gson.Gson;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
+import vidupe.constants.EntityProperties;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -68,11 +69,13 @@ public class Login extends HttpServlet{
         Key key = datastore.newKeyFactory().setNamespace("vidupe").setKind("users").newKey(data.getEmail());
         String ifExists = "false";
         Entity task = Entity.newBuilder(key)
-                .set("User-id",data.getId())
-                .set("Name", StringValue.newBuilder(data.getName()).setExcludeFromIndexes(true).build())
-                .set("Email-id",data.getEmail())
-                .set("created", Timestamp.now())
-                .set("done", false)
+                .set(EntityProperties.USER_ID,data.getId())
+                .set(EntityProperties.NAME, StringValue.newBuilder(data.getName()).setExcludeFromIndexes(true).build())
+                .set(EntityProperties.EMAIL_ID,data.getEmail())
+                .set(EntityProperties.TOTAL_VIDEOS, 0)
+                .set(EntityProperties.VIDEOS_PROCESSED, 0)
+                .set(EntityProperties.CREATED, Timestamp.now())
+                .set(EntityProperties.DONE, false)
                 .build();
         try {
             datastore.add(task);
@@ -80,9 +83,24 @@ public class Login extends HttpServlet{
             if ("ALREADY_EXISTS".equals(ex.getReason())) {
                 // entity.getKey() already exists
                 ifExists = "true";
+                resetEntityProperty(datastore, key, task);
             }
         }
       return ifExists;
+    }
+
+    private void resetEntityProperty(Datastore datastore, Key key, Entity task) {
+        Entity newtask = Entity.newBuilder(key)
+                .set(EntityProperties.USER_ID,task.getString(EntityProperties.USER_ID))
+                .set(EntityProperties.NAME, StringValue.newBuilder(task.getString(EntityProperties.NAME)).setExcludeFromIndexes(true).build())
+                .set(EntityProperties.EMAIL_ID,task.getString(EntityProperties.EMAIL_ID))
+                .set(EntityProperties.TOTAL_VIDEOS, 0)
+                .set(EntityProperties.VIDEOS_PROCESSED, 0)
+                .set(EntityProperties.CREATED, task.getTimestamp(EntityProperties.CREATED))
+                .set(EntityProperties.DONE, false)
+                .build();
+        datastore.put(newtask);
+
     }
 
     public static void publishMessages(Map<String,String> attributes) throws Exception {

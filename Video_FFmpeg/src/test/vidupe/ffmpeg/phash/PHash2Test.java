@@ -70,8 +70,8 @@ public class PHash2Test {
                 String hash1 = pHash2.getHash(inputStream1);
                 String hash2 = pHash2.getHash(inputStream2);
                 assertEquals(hash2.length(), hash1.length());
-                int dist = pHash2.distance(hash1 , hash2);
-                assertTrue("distance = " + dist + " is less than 21", dist > 21);
+                int dist = pHash2.hammingDistance(hash1 , hash2);
+                assertTrue("hammingDistance = " + dist + " is less than 21", dist > 21);
             }
         }
     }
@@ -90,7 +90,7 @@ public class PHash2Test {
         String hash1 = pHash2.getHash(inputStream1);
         String hash2 = pHash2.getHash(inputStream2);
         assertEquals(hash2.length(), hash1.length());
-        int dist = pHash2.distance(hash1 , hash2);
+        int dist = pHash2.hammingDistance(hash1 , hash2);
         assertEquals(distance, dist);
         assertEquals(distance, phashDistance);
     }
@@ -180,7 +180,7 @@ public class PHash2Test {
         assertEquals(4.0, median);
     }
 
-//    @Test
+//    @Test1
 //    public void dctMatrixTest(){
 //        int N=32;
 //        double[][] dctMatrix = pHash2.phashDCTMatrix(N);

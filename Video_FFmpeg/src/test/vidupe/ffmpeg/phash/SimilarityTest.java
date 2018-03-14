@@ -18,6 +18,7 @@ import static junit.framework.TestCase.assertTrue;
 @RunWith(Parameterized.class)
 public class SimilarityTest {
     final static String IMG_DIR = "/media/farheen/01D26F1D020D3380/sample/Similarity/Test1/";
+    final static String IMG_DIR2 = "/media/farheen/01D26F1D020D3380/sample/DissimilarityVideoTest/test1/";
 
     private File f1;
     private File f2;
@@ -29,8 +30,8 @@ public class SimilarityTest {
 
     @Parameterized.Parameters(name = "{index} : {0} {1}")
     public static List<File[]> data() {
-        List<File> video1Files = listImageFiles(IMG_DIR + "1");
-        List<File> video2Files = listImageFiles(IMG_DIR + "2");
+        List<File> video1Files = listImageFiles(IMG_DIR2 + "2");
+        List<File> video2Files = listImageFiles(IMG_DIR2 + "7");
         List<File[]> result = new ArrayList<>();
         for(File file1 : video1Files) {
             for(File file2: video2Files) {
@@ -57,7 +58,7 @@ public class SimilarityTest {
         String hash1 = phash.getHash(inputStream1);
         String hash2 = phash.getHash(inputStream2);
         assertEquals(hash2.length(), hash1.length());
-        int dist = phash.distance(hash1 , hash2);
-        assertTrue("distance = " + dist + " is less than 21", dist < 20);
+        int dist = phash.hammingDistance(hash1 , hash2);
+        assertTrue("hammingDistance = " + dist + " is less than 21", dist < 20);
     }
 }

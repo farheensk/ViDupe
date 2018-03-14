@@ -67,8 +67,8 @@ public class DeSerialize {
 //                if (videoId1.equals("PuctcXmZ270")) {
 //                    System.out.print(video2.getKey()  + " ");
 //                    //hashesList2.remove(0);
-//                    double distance = computeHammingDistance(hashesList1, hashesList2);
-//                    System.out.println(distance);
+//                    double hammingDistance = computeHammingDistance(hashesList1, hashesList2);
+//                    System.out.println(hammingDistance);
 //                }
 //            }
 //        }
@@ -95,7 +95,7 @@ public class DeSerialize {
                 String videopHash2 = videoHash2.get(j - 1);
                 int distance = imagePhash.distance(videopHash1, videopHash2);
                 if (distance <= 21) {
-                    //System.out.println("[" + (i-1) + ", " + (j-1) + "] = " + distance);
+                    //System.out.println("[" + (i-1) + ", " + (j-1) + "] = " + hammingDistance);
                     C[i][j] = C[i - 1][j - 1] + 1;
 
                 } else {
@@ -121,9 +121,9 @@ public class DeSerialize {
             String videopHash1 = videoHash1.get(i);
             for (j = previousj; j < N2; j++) {
                 String videopHash2 = videoHash2.get(j);
-                int distance = imagePhash.distance(videopHash1, videopHash2);
+                int distance = imagePhash.hammingDistance(videopHash1, videopHash2);
                 if (distance <= 26) {
-                    //System.out.println("[" + (i-1) + ", " + (j-1) + "] = " + distance);
+                    //System.out.println("[" + (i-1) + ", " + (j-1) + "] = " + hammingDistance);
                     counter++;
                     previousj = j+1;
                     break;

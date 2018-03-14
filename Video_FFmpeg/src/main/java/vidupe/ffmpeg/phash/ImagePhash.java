@@ -31,7 +31,7 @@ public class ImagePhash {
 
 	}
 
-// Returns a 'binary string' (like. 001010111011100010) which is easy to do a hamming distance on.
+// Returns a 'binary string' (like. 001010111011100010) which is easy to do a hamming hammingDistance on.
 
 	public ImagePhash(int size, int smallerSize) {
 
@@ -52,20 +52,20 @@ public class ImagePhash {
 		ImagePhash p = new ImagePhash();
 		String image1;
 		String image2;
-        String path1 = "/media/farheen/01D26F1D020D3380/sample/similarityTest/39/";
-        String path2 = "/media/farheen/01D26F1D020D3380/sample/similarityTest/53-37/";
+        String path1 = "/media/farheen/01D26F1D020D3380/sample/DissimilarityVideoTest/test1/10/";
+        String path2 = "/media/farheen/01D26F1D020D3380/sample/DissimilarityVideoTest/test1/8/";
         try {
-            image1 = p.getHash(new FileInputStream(new File(path1 + "390001.jpg")));
+            image1 = p.getHash(new FileInputStream(new File(path1 + "0002.jpg")));
 
-            image2 = p.getHash(new FileInputStream(new File(path2 + "53-370002.jpg")));
+            image2 = p.getHash(new FileInputStream(new File(path2 + "0007.jpg")));
             System.out.println(image1 + " " + image2);
-            System.out.println("1:2 Score is " + p.distance(image1, image2));
+            System.out.println("1:2 Score is " + p.hammingDistance(image1, image2));
         } catch (Exception e) {
             e.printStackTrace();
         }
 	}
 
-	public int distance(String s1, String s2) {
+	public int hammingDistance(String s1, String s2) {
 
 		int counter = 0;
 

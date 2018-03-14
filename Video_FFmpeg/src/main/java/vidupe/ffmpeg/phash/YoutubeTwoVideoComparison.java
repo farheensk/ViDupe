@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class VideoPhash{
+public class YoutubeTwoVideoComparison {
    public static void main(String args[]) {
         String directory = "/media/farheen/01D26F1D020D3380/sample/test";
         String command = "ffmpeg -i " + directory + "/240.mp4 -vf select=eq(pict_type\\,PICT_TYPE_I) -vsync vfr " + directory + "/f1%04d.jpg -hide_banner -y";
@@ -110,7 +110,7 @@ public class VideoPhash{
             String videopHash1 = videoHash1.get(i - 1);
             for (int j = 1; j < N2 + 1; j++) {
                 String videopHash2 = videoHash2.get(j - 1);
-                int distance = imagePhash.distance(videopHash1, videopHash2);
+                int distance = imagePhash.hammingDistance(videopHash1, videopHash2);
                 if (distance <= 21) {
                     System.out.println("[" + (i - 1) + ", " + (j - 1) + "] = " + distance);
                     C[i][j] = C[i - 1][j - 1] + 1;

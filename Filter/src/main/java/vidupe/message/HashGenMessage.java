@@ -9,6 +9,7 @@ import lombok.Data;
 @Builder
 public class HashGenMessage {
 
+    private String email;
     private String accessToken;
     private String videoId;
     private String videoName;

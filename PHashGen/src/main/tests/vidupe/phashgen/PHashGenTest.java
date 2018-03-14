@@ -19,9 +19,9 @@ import java.util.Map;
 public class PHashGenTest extends TestCase {
 
    public static void main(String args[]){
-       PHashGen pHashGen = new PHashGen();
+       VideoProcessor pHashGen = new VideoProcessor();
        pHashGen.extractKeyFrames("/media/farheen/01D26F1D020D3380/sample/","1920_1080.flv");
-        pHashGen.deleteVideo("/media/farheen/01D26F1D020D3380/sample/","1920_1080.flv");
+        pHashGen.deleteFile("/media/farheen/01D26F1D020D3380/sample/","1920_1080.flv");
    }
 
     void publishMessages(Map<String, String> attributes){

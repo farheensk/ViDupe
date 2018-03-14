@@ -56,7 +56,7 @@ public class TestHamming {
                     //list2.remove(0);
 
                     double distance = computeHammingDistance(list1, list2);
-                   // double distance2 = computeHammingDistance2(list1, list2);
+                   // double distance2 = distanceBetweenVideos(list1, list2);
                     System.out.println(distance);
                 }
             }
@@ -71,8 +71,8 @@ public class TestHamming {
 //                if (videoId1.equals("PuctcXmZ270")) {
 //                    System.out.print(video2.getKey()  + " ");
 //                    //hashesList2.remove(0);
-//                    double distance = computeHammingDistance(hashesList1, hashesList2);
-//                    System.out.println(distance);
+//                    double hammingDistance = computeHammingDistance(hashesList1, hashesList2);
+//                    System.out.println(hammingDistance);
 //                }
 //            }
 //        }
@@ -130,7 +130,7 @@ public class TestHamming {
                 String videopHash2 = videoHash2.get(j - 1);
                 int distance = imagePhash.distance(videopHash1, videopHash2);
                 if (distance <= 21) {
-                    //System.out.println("[" + (i-1) + ", " + (j-1) + "] = " + distance);
+                    //System.out.println("[" + (i-1) + ", " + (j-1) + "] = " + hammingDistance);
                     C[i][j] = C[i - 1][j - 1] + 1;
 
                 } else {

@@ -67,7 +67,7 @@ public class PHash2 {
 
     }
 
-// Returns a 'binary string' (like. 001010111011100010) which is easy to do a hamming distance on.
+// Returns a 'binary string' (like. 001010111011100010) which is easy to do a hamming hammingDistance on.
 
     private ColorConvertOp colorConvert = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
     private double[] c;
@@ -187,8 +187,8 @@ public class PHash2 {
            img = getImageFromOneChannel(img);
            img = getConvolutedImage(img, getKernel(7, 7, 1.0f));
          //   img = MeanFilter.applyMeanFilter2(img);
-//            MyCImgFilter cImgFilter = new MyCImgFilter();
-//            img = cImgFilter.myFilter(img);
+            MyCImgFilter cImgFilter = new MyCImgFilter();
+            img = cImgFilter.myFilter(img);
 //            for(int i=0;i<img.getHeight();i++){
 //                for(int j=0;j<img.getWidth();j++){
 //                    Color c = new Color(img.getRGB(i,j));

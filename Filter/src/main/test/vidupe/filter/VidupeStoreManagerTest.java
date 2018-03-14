@@ -7,7 +7,7 @@ import com.google.cloud.datastore.Entity;
 import org.junit.After;
 import org.junit.Test;
 import vidupe.filter.constants.Constants;
-import vidupe.filter.constants.EntityProperties;
+import vidupe.filter.constants.VideoEntityProperties;
 
 import java.util.Date;
 import java.util.LinkedList;
@@ -48,7 +48,7 @@ public class VidupeStoreManagerTest {
         VideoMetaData videoMetaData = createVideoMetaData(id, date);
         Entity entity = vidupeStoreManager.createEntity(videoMetaData, CLIENT_ID);
         assertNotNull(entity);
-        assertEquals(true, entity.getValue(EntityProperties.EXISTS_IN_DRIVE).get());
+        assertEquals(true, entity.getValue(VideoEntityProperties.EXISTS_IN_DRIVE).get());
     }
 
     private VideoMetaData createVideoMetaData(String id, Date date) {
@@ -72,10 +72,10 @@ public class VidupeStoreManagerTest {
         Entity entity = vidupeStoreManager.createEntity(videoMetaData, CLIENT_ID);
         vidupeStoreManager.resetEntityProperty(entity, videoMetaData,false);
         Entity video = vidupeStoreManager.findByKey(videoMetaId, CLIENT_ID);
-        assertEquals(false, video.getValue(EntityProperties.EXISTS_IN_DRIVE).get());
+        assertEquals(false, video.getValue(VideoEntityProperties.EXISTS_IN_DRIVE).get());
         vidupeStoreManager.resetEntityProperty(entity, videoMetaData,true);
         video = vidupeStoreManager.findByKey(videoMetaId, CLIENT_ID);
-        assertEquals(true, video.getValue(EntityProperties.EXISTS_IN_DRIVE).get());
+        assertEquals(true, video.getValue(VideoEntityProperties.EXISTS_IN_DRIVE).get());
     }
 
     private String getKey() {
