@@ -3,6 +3,7 @@ package vidupe.phashgen;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Iterators;
 import vidupe.constants.EntityProperties;
+import vidupe.constants.UserEntityProperties;
 import vidupe.message.HashGenMessage;
 
 import java.util.ArrayList;
@@ -57,7 +58,30 @@ public class VidupeStoreManager {
     public void writeInDataStore(ArrayList<Long> hashes, HashGenMessage message) {
         final Entity entity = findByKey(message.getVideoId(), message.getEmail());
         writeHashesInDataStore(hashes, message);
+        updateUserEntityPropert(message);
         resetEntityProperty(entity);
+    }
+
+    private void updateUserEntityPropert(HashGenMessage message) {
+        Key key = datastore.newKeyFactory().setKind("users").newKey(message.getEmail());
+        Entity entity = datastore.get(key);
+        long videosProcessed = entity.getLong(UserEntityProperties.VIDEOS_PROCESSED);
+        long totalProcessed = entity.getLong(UserEntityProperties.TOTAL_VIDEOS);
+        boolean done = false;
+        final long updatedVideoProcessed = videosProcessed + 1;
+        if(updatedVideoProcessed == totalProcessed){
+             done = true;
+        }
+        Entity task = Entity.newBuilder(key)
+                .set(UserEntityProperties.USER_ID,entity.getString(UserEntityProperties.USER_ID))
+                .set(UserEntityProperties.NAME, entity.getString(UserEntityProperties.NAME))
+                .set(UserEntityProperties.EMAIL_ID,entity.getString(UserEntityProperties.EMAIL_ID))
+                .set(UserEntityProperties.TOTAL_VIDEOS, entity.getLong(UserEntityProperties.TOTAL_VIDEOS))
+                .set(UserEntityProperties.VIDEOS_PROCESSED, updatedVideoProcessed)
+                .set(UserEntityProperties.CREATED, entity.getTimestamp(UserEntityProperties.CREATED))
+                .set(UserEntityProperties.DONE, done)
+                .build();
+        datastore.put(task);
     }
 
     public void writeHashesInDataStore(ArrayList<Long> hashes, HashGenMessage message) {
