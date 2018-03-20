@@ -59,11 +59,11 @@ public class MyCImgFilterTest {
     @Test
     public void convertToDouble(){
         String hash = "1000011011100101110100011100000011100110100100011100110101100000";
-        String hash1 ="1111111111111111111111111111111111111111111111111111111111111000";
+        String hash1 ="1110100110011000001010000010011001100100000000100010001101001100";
         long longHash = parseLong(hash1, 2);
         System.out.println(longHash);
         //long hash1Long = 9223372036854775807L;
-        long hash1Long = -8L;
+        long hash1Long = -1614496321060592820L;
         String binaryString = Long.toBinaryString(hash1Long);
 
 

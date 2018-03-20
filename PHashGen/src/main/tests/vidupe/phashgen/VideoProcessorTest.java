@@ -18,17 +18,17 @@ public class VideoProcessorTest {
         String accessToken = "ya29.Glt7BanDIhHKwGBfkXzfYiiY6VabSDevaQIYYIDRd4YYnL5nUDCWZs27SuBRT1Ijrqv8A9schQ-Rx11JK3XxItvig3nTslQGuAMOxt2NHIWO7TS4vILZxWyoQ55i";
         HashGenMessage message = HashGenMessage.builder().accessToken(accessToken).videoId("0B-cyY07ful39VDBYQkxvZmRuek0")
                 .videoName("video.mp4").email("").build();
-        final Drive drive = videoProcessor.generatePhash(message);
+        final Drive drive = videoProcessor.getDrive(message);
         assertTrue("drive returned null",drive!=null);
     }
 
     @Test
     public void processVideo() {
         VideoProcessor videoProcessor = new VideoProcessor();
-        String accessToken = "ya29.Glt7BanDIhHKwGBfkXzfYiiY6VabSDevaQIYYIDRd4YYnL5nUDCWZs27SuBRT1Ijrqv8A9schQ-Rx11JK3XxItvig3nTslQGuAMOxt2NHIWO7TS4vILZxWyoQ55i";
-        HashGenMessage message = HashGenMessage.builder().accessToken(accessToken).videoId("0B-cyY07ful39VDBYQkxvZmRuek0")
-                .videoName("video.mp4").email("").build();
-        final Drive drive = videoProcessor.generatePhash(message);
+        String accessToken = "ya29.GluDBYFHYwTrdWMKVYjOzu4-H9mr3RKnq8vV0m9EGj15C_EB6RIfJTT2-y525Xlubq1ljl3Gmg5dAh3_HhgwNGT15HQYJqDwst9cJmMKiWp6q7nOZ4q4s6kXDTDO";
+        HashGenMessage message = HashGenMessage.builder().accessToken(accessToken).videoId("1tQE-4UKaHpySzUFIJjtwGCEJpn9RANdr")
+                .videoName("Copy of video.mp4").email("").build();
+        final Drive drive = videoProcessor.getDrive(message);
         final ArrayList<String> hashes = videoProcessor.processVideo(message, drive);
         System.out.println(hashes);
         assertTrue("hashes are null", hashes != null);

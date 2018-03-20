@@ -1,7 +1,6 @@
 package vidupe.constants;
 
-public class EntityProperties {
-    public static final String JOB_ID = "Job-id";
+public class UserEntityProperties {
     public static final String USER_ID = "User-id";
     public static final String NAME = "Name";
     public static final String EMAIL_ID = "Email-id";

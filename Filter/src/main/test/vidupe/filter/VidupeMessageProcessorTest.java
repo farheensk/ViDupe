@@ -6,6 +6,7 @@ import com.google.cloud.datastore.DatastoreOptions;
 import org.junit.After;
 import org.junit.Test;
 import vidupe.filter.constants.Constants;
+import vidupe.message.FilterMessage;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -79,4 +80,13 @@ public class VidupeMessageProcessorTest {
     }
 
 
+    @Test
+    public void filter() {
+        Datastore datastore = DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService();
+        VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(datastore);
+        VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
+        FilterMessage filterMessage = FilterMessage.builder().accessToken("ya29.GluDBTDk0hK2LidQqxoJsVCujoNFjts8EQ7jPlfoiBfBTmv5AM6DtGUDK1lJX8xMcgu7a79Qg_3qLhxGaGUYUk0bikqd9M3rhNUdMbUWJPDSv8sR5xaC_SWmIMaV").build();
+        vidupeMessageProcessor.filter(filterMessage);
+
+    }
 }

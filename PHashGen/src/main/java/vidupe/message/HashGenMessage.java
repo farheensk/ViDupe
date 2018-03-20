@@ -10,7 +10,7 @@ import java.io.IOException;
 @Data
 @Builder
 public class HashGenMessage {
-
+    private String jobId;
     private String email;
     private String accessToken;
     private String videoId;

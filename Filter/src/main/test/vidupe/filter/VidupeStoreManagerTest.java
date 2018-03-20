@@ -1,9 +1,8 @@
 package vidupe.filter;
 
 import com.google.api.client.util.DateTime;
-import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.DatastoreOptions;
-import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.*;
+import com.google.common.collect.Iterators;
 import org.junit.After;
 import org.junit.Test;
 import vidupe.filter.constants.Constants;
@@ -78,6 +77,24 @@ public class VidupeStoreManagerTest {
         assertEquals(true, video.getValue(VideoEntityProperties.EXISTS_IN_DRIVE).get());
     }
 
+    @Test
+    public void sortByIdTest(){
+        String videoMetaId1 = "999";
+        String videoMetaId2 = getKey();
+        VideoMetaData videoMetaData1 = createVideoMetaData(videoMetaId1, new Date());
+        VideoMetaData videoMetaData2 = createVideoMetaData(videoMetaId2, new Date());
+        Entity entity1 = vidupeStoreManager.createEntity(videoMetaData1, CLIENT_ID);
+        Entity entity2 = vidupeStoreManager.createEntity(videoMetaData2, CLIENT_ID);
+
+        Query<Entity> query = Query.newEntityQueryBuilder().setKind("videos")
+                .setOrderBy(StructuredQuery.OrderBy.desc("__key__"))
+                .build();
+        QueryResults<Entity> result = this.datastore.run(query);
+        Entity[] entities = Iterators.toArray(result, Entity.class);
+        for(Entity e: entities){
+            System.out.println(e);
+        }
+    }
     private String getKey() {
         Random r = new Random();
         int k = r.nextInt(1000);

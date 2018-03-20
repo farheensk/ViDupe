@@ -7,16 +7,13 @@ import lombok.Data;
 
 @Data
 @Builder
-public class HashGenMessage {
+public class FilterMessage {
+
     private String jobId;
     private String email;
     private String accessToken;
-    private String videoId;
-    private String videoName;
-    private long videoSize;
-    private long videoDuration;
-    private long minHeight;
-    private long minWidth;
+    private String clientId;
+    private String ifExists;
 
     public byte[] toBytes() {
         ObjectMapper objectMapper = new ObjectMapper();

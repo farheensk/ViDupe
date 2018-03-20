@@ -6,9 +6,11 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.gson.Gson;
+import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
 import vidupe.constants.EntityProperties;
+import vidupe.message.FilterMessage;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -22,12 +24,37 @@ import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @WebServlet("/login")
 public class Login extends HttpServlet{
+    public static void publishMessages(FilterMessage message) throws Exception {
+        // [START pubsub_publish]
+        TopicName topicName = TopicName.of("winter-pivot-192220", "frontend-topic");
+        Publisher publisher = null;
+        List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
+
+        try {
+            // Create a publisher instance with default settings bound to the topic
+            publisher = Publisher.newBuilder(topicName).build();
+            ByteString data = ByteString.copyFromUtf8(message.toJsonString());
+            PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
+
+            // Once published, returns a server-assigned message id (unique within the topic)
+            ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
+            messageIdFutures.add(messageIdFuture);
+
+        } finally {
+            // wait on any pending publish requests.
+            List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
+
+            for (String messageId : messageIds) {
+                System.out.println("published with message ID: " + messageId);
+            }
+
+        }
+    }
+
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
         try {
@@ -47,13 +74,17 @@ public class Login extends HttpServlet{
             conn = url.openConnection();
             StringBuilder content1 = readFromUrl(conn);
             GoogleAccount data = new Gson().fromJson(content1.toString(), GoogleAccount.class);
-            Map<String,String> attributes= new HashMap<>();
-            String ifExists = createEntity(data);
-            attributes.put("access_token",accessToken);
-            attributes.put("client_id",data.getId());
-            attributes.put("email",data.getEmail());
-            attributes.put("ifExists",ifExists);
-            publishMessages(attributes);
+
+            final String jobId = String.valueOf(System.currentTimeMillis());
+            String ifExists = createEntity(data, jobId);
+            FilterMessage mesesage = FilterMessage.builder()
+                    .jobId(jobId)
+                    .accessToken(accessToken)
+                    .clientId(data.getId())
+                    .email(data.getEmail())
+                    .ifExists(ifExists)
+                    .build();
+            publishMessages(mesesage);
 
             response.getWriter().print(data.getEmail()+ " "+accessToken);
         } catch (Exception e) {
@@ -63,12 +94,13 @@ public class Login extends HttpServlet{
 
     }
 
-    private String createEntity(GoogleAccount data) {
+    private String createEntity(GoogleAccount data, String jobId) {
 
         Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
         Key key = datastore.newKeyFactory().setNamespace("vidupe").setKind("users").newKey(data.getEmail());
         String ifExists = "false";
         Entity task = Entity.newBuilder(key)
+                .set(EntityProperties.JOB_ID, jobId)
                 .set(EntityProperties.USER_ID,data.getId())
                 .set(EntityProperties.NAME, StringValue.newBuilder(data.getName()).setExcludeFromIndexes(true).build())
                 .set(EntityProperties.EMAIL_ID,data.getEmail())
@@ -83,14 +115,15 @@ public class Login extends HttpServlet{
             if ("ALREADY_EXISTS".equals(ex.getReason())) {
                 // entity.getKey() already exists
                 ifExists = "true";
-                resetEntityProperty(datastore, key, task);
+                resetEntityProperty(datastore, key, task, jobId);
             }
         }
       return ifExists;
     }
 
-    private void resetEntityProperty(Datastore datastore, Key key, Entity task) {
+    private void resetEntityProperty(Datastore datastore, Key key, Entity task, String jobId) {
         Entity newtask = Entity.newBuilder(key)
+                .set(EntityProperties.JOB_ID, jobId)
                 .set(EntityProperties.USER_ID,task.getString(EntityProperties.USER_ID))
                 .set(EntityProperties.NAME, StringValue.newBuilder(task.getString(EntityProperties.NAME)).setExcludeFromIndexes(true).build())
                 .set(EntityProperties.EMAIL_ID,task.getString(EntityProperties.EMAIL_ID))
@@ -101,32 +134,6 @@ public class Login extends HttpServlet{
                 .build();
         datastore.put(newtask);
 
-    }
-
-    public static void publishMessages(Map<String,String> attributes) throws Exception {
-        // [START pubsub_publish]
-        TopicName topicName = TopicName.of("winter-pivot-192220", "frontend-topic");
-        Publisher publisher = null;
-        List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
-
-        try {
-            // Create a publisher instance with default settings bound to the topic
-            publisher = Publisher.newBuilder(topicName).build();
-            PubsubMessage pubsubMessage = PubsubMessage.newBuilder().putAllAttributes(attributes).build();
-
-            // Once published, returns a server-assigned message id (unique within the topic)
-            ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
-            messageIdFutures.add(messageIdFuture);
-
-        } finally {
-            // wait on any pending publish requests.
-            List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
-
-            for (String messageId : messageIds) {
-                System.out.println("published with message ID: " + messageId);
-            }
-
-        }
     }
 
 

@@ -136,6 +136,7 @@ public class VidupeStoreManager {
 
     public void resetUserProperty(Entity e, Key key, int messageCount) {
         Entity task = Entity.newBuilder(key)
+                .set(UserEntityProperties.JOB_ID, e.getString(UserEntityProperties.JOB_ID))
                 .set(UserEntityProperties.USER_ID, e.getString(UserEntityProperties.USER_ID))
                 .set(UserEntityProperties.NAME, StringValue.newBuilder(e.getString(UserEntityProperties.NAME)).setExcludeFromIndexes(true).build())
                 .set(UserEntityProperties.EMAIL_ID, e.getString(UserEntityProperties.EMAIL_ID))

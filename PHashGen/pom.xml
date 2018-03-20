@@ -106,6 +106,26 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>20030203.000550</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>20030203.000550</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.6</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.6</version>
+        </dependency>
 
     </dependencies>
     <build>
@@ -117,7 +137,7 @@
                 <version>${jettyVersion}</version>
                 <configuration>
                     <webApp>
-                        <overrideDescriptor>/home/farheen/IdeaProjects/ViDupe/Filter/src/main/webapp/WEB-INF/web.xml</overrideDescriptor>
+                        <overrideDescriptor>/home/farheen/IdeaProjects/ViDupe/PHashGen/src/main/webapp/WEB-INF/web.xml</overrideDescriptor>
                     </webApp>
                     <httpConnector>
                         <!--host>localhost</host-->

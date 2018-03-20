@@ -25,12 +25,12 @@ public class FilterDriveTest {
     }
 
     @Test
-    public void receiveMessagesTest() {
+    public void publishMessagesTest() {
         FilterDrive fd = new FilterDrive();
         Map<String,String> attributes= new HashMap<>();
-        attributes.put("access_token","token");
+        attributes.put("access_token","ya29.GluDBRxnF2uLis7aJQDYfAGGJAgUNR55rdg8RSpa3yNYjpzGp0hxa3nO-BHBeNN_pZvLl12GkDyDdAUkL_785XCeM3Bu42NIVpMv_InOseMwUKU2Z44pMGbrU-IP");
         attributes.put("client_id", getId());
-        attributes.put("email", "farheeen@gmail.com");
+        attributes.put("email", "gousiyafarheen3@gmail.com");
         attributes.put("ifExists","true");
         try {
             publishMessages(attributes);

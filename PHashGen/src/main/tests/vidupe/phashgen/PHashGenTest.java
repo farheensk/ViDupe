@@ -13,6 +13,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import junit.framework.TestCase;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
@@ -20,7 +21,7 @@ public class PHashGenTest extends TestCase {
 
    public static void main(String args[]){
        VideoProcessor pHashGen = new VideoProcessor();
-       pHashGen.extractKeyFrames("/media/farheen/01D26F1D020D3380/sample/","1920_1080.flv");
+       pHashGen.extractKeyFrames("/media/farheen/01D26F1D020D3380/sample/","",new File("1920_1080.flv"));
         pHashGen.deleteFile("/media/farheen/01D26F1D020D3380/sample/","1920_1080.flv");
    }
 

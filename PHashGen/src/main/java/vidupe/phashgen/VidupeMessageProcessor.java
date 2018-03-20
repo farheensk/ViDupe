@@ -10,9 +10,10 @@ import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
+import vidupe.constants.Constants;
+import vidupe.message.DeDupeMessage;
 import vidupe.message.HashGenMessage;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,14 +39,17 @@ public class VidupeMessageProcessor implements MessageReceiver {
         try {
             hashGenMessage = mapper.readValue(messageString, HashGenMessage.class);
             VideoProcessor videoProcessor = new VideoProcessor();
-            final Drive drive = videoProcessor.generatePhash(hashGenMessage);
+            final Drive drive = videoProcessor.getDrive(hashGenMessage);
             ArrayList<String> hashes = videoProcessor.processVideo(hashGenMessage,drive);
             final ArrayList<Long> longHashes = convertStringHashesToLong(hashes);
             System.out.println(hashes);
 
-            vidupeStoreManager.writeInDataStore(longHashes,hashGenMessage);
-
-        } catch (IOException e) {
+            final boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, hashGenMessage);
+            if(canSendMessage){
+                DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(hashGenMessage.getJobId()).email(hashGenMessage.getEmail()).build();
+                publishMessage(messageToDeDupe);
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -61,15 +65,15 @@ public class VidupeMessageProcessor implements MessageReceiver {
         return longHashes;
     }
 
-    private void publishMessage(HashGenMessage hashGenMessage) throws Exception{
-        TopicName topicName = TopicName.of("winter-pivot-192220", "filter-topic");
+    private void publishMessage(DeDupeMessage deDupeMessage) throws Exception{
+        TopicName topicName = TopicName.of(Constants.PROJECT, Constants.PHASHGEN_TOPIC);
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
 
         try {
             // Create a publisher instance with default settings bound to the topic
             publisher = Publisher.newBuilder(topicName).build();
-            ByteString data = ByteString.copyFromUtf8(hashGenMessage.toJsonString());
+            ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
             messageIdFutures.add(messageIdFuture);

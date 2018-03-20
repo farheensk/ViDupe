@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -17,7 +18,8 @@ public class VideoHash {
    // final String IMG_DIR = "/media/farheen/01D26F1D020D3380/sample/DissimilarityVideoTest/test1/";
   //  final static String IMG_DIR = "/media/farheen/01D26F1D020D3380/CC_WEB_VIDEO/Videos/";
   // final static String IMG_DIR = "/media/farheen/01D26F1D020D3380/sample/DissimilarityVideoTest/test2/";
-   final static String IMG_DIR = "/media/farheen/01D26F1D020D3380/CC_WEB_VIDEO/2/";
+   //final static String IMG_DIR = "/media/farheen/01D26F1D020D3380/CC_WEB_VIDEO/2/";
+   final static String IMG_DIR = "/media/farheen/01D26F1D020D3380/CC_WEB_VIDEO/drive/";
 
     final static float[] durations = new float[]{30, 41, 61, 61,
             101, 101, 41, 181, 181, 45, 45, 102, 102, 60, 60, 74, 53, 180, 62, 63, 63};
@@ -45,8 +47,10 @@ public class VideoHash {
                    file1.getName().endsWith(".rm") || file2.getName().endsWith(".rm")   ||
                    file1.getName().endsWith(".wmv") || file2.getName().endsWith(".wmv")){
 
-                    fileNameInt1 = Integer.parseInt(fileName1.substring(2,fileName1.length()-2));
-                    fileNameInt2 = Integer.parseInt(fileName2.substring(2,fileName2.length()-2));
+//                    fileNameInt1 = Integer.parseInt(fileName1.substring(2,fileName1.length()-2));
+//                    fileNameInt2 = Integer.parseInt(fileName2.substring(2,fileName2.length()-2));
+                    fileNameInt1 = Integer.parseInt(fileName1);
+                    fileNameInt2 = Integer.parseInt(fileName2);
                 }
                 else{
                     fileNameInt1 = Integer.parseInt(fileName1);
@@ -58,12 +62,23 @@ public class VideoHash {
         return filePaths;
     }
 
+    private static long parseLong(String s, int base) {
+        return new BigInteger(s, base).longValue();
+    }
+
     public void dissimilarity() {
         List<File> videoFiles = listFiles(IMG_DIR, new String[]{"mp4","flv", "MP4", "3gp", "avi", "mpg", "rm", "wmv"});
         List<VideoHashesInformation> videoHashesInformationList = getAllVideoHashes(videoFiles);
       //  makeVideoMatchingDurationSets(videoHashesInformationList);
-        int i=0;
+        final List<List<VideoHashesInformation>> lists = groupDuplicateVideoFiles(videoHashesInformationList);
 
+
+        for(int i=0;i<lists.size();i++){
+            for (int j=0;j<lists.get(i).size();j++){
+                System.out.print(lists.get(i).get(j).videoName+"   , ");
+            }
+            System.out.println("\n ================ ");
+        }
 //        for (VideoHashesInformation video1 : videoHashesInformationList) {
 //            for (VideoHashesInformation video2 : videoHashesInformationList) {
 //                    double distance = distanceBetweenVideos(video1, video2);
@@ -73,11 +88,11 @@ public class VideoHash {
 //            videoHashesInformationList.remove(0);
 //            i++;
 //        }
-        VideoHashesInformation v1 = videoHashesInformationList.get(2);
-            for (VideoHashesInformation video2 : videoHashesInformationList) {
-                    double distance = distanceBetweenVideos(v1, video2);
-                    System.out.println(v1.getVideoName() + " " + video2.getVideoName() + ":" + distance);
-            }
+//        VideoHashesInformation v1 = videoHashesInformationList.get(2);
+//            for (VideoHashesInformation video2 : videoHashesInformationList) {
+//                    double distance = distanceBetweenVideos(v1, video2);
+//                    System.out.println(v1.getVideoName() + " " + video2.getVideoName() + ":" + distance);
+//            }
     }
 
     private void makeVideoMatchingDurationSets(List<VideoHashesInformation> videoHashesInformationList) {
@@ -102,21 +117,49 @@ public class VideoHash {
         return videoHashes;
     }
 
+    private List<List<VideoHashesInformation>> groupDuplicateVideoFiles(List<VideoHashesInformation> videoHashesFromStore) {
+        int size = videoHashesFromStore.size();
+        List<List<VideoHashesInformation>> duplicatesList = new ArrayList<>();
+        int[] flag = new int[size];
+        for(int i = 0; i < size; i++){
+            List<VideoHashesInformation> video1Duplicates = new ArrayList<>();
+            if(flag[i] == 0){
+                flag[i] =1;
+                video1Duplicates.add(videoHashesFromStore.get(i));
+                for(int j = i + 1; j < size; j++){
+                    double distance = distanceBetweenVideos(videoHashesFromStore.get(i), videoHashesFromStore.get(j));
+                    System.out.println(distance);
+                    if(distance>=0.4){
+                        flag[j] = 1;
+                        video1Duplicates.add(videoHashesFromStore.get(j));
+                    }
+                }
+                duplicatesList.add(video1Duplicates);
+            }
+        }
+        return duplicatesList;
+    }
+
     public List<String> generateHashes(File file1) {
-      //  extractKeyFrames(file1);
+        extractKeyFrames(file1);
         List<String> generatedHashes = new ArrayList<>();
+        List<Long> longHashes = new ArrayList<>();
         final String fileName = FilenameUtils.removeExtension(file1.getName());
         List<File> imageFiles = listFiles(IMG_DIR + fileName, new String[]{"jpg", "jpeg"});
         ImagePhash phash = new ImagePhash();
         for (File f1 : imageFiles) {
             try {
                 InputStream inputStream1 = new FileInputStream(f1);
-                generatedHashes.add(phash.getHash(inputStream1));
+                final String hash = phash.getHash(inputStream1);
+                generatedHashes.add(hash);
+                longHashes.add(parseLong(hash, 2));
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
         //deleteKeyFrames(file1);
+        System.out.println(longHashes.size());
+        System.out.println(longHashes);
         return generatedHashes;
     }
 

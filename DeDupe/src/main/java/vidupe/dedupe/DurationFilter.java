@@ -1,14 +1,14 @@
-package vidupe.filter;
+package vidupe.dedupe;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class DurationFilter
 {
-    public List<VideoMetaData>  filterOutDurations(List<VideoMetaData> files)
+    public List<VideoHashesInformation>  filterOutDurations(List<VideoHashesInformation> files)
     {
         files.sort(new MapComparator("duration"));
-        List<VideoMetaData> returnSet = new ArrayList<>();
+        List<VideoHashesInformation> returnSet = new ArrayList<>();
         int visit[] = new int[files.size()];
 
         for(int i=0;i<(files.size()-1);i++){

@@ -8,14 +8,19 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.FileList;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import vidupe.message.HashGenMessage;
 
 import java.io.*;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 
 public class VideoProcessor {
-    public Drive generatePhash(HashGenMessage message) {
+    public Drive getDrive(HashGenMessage message) {
         String accessToken = message.getAccessToken();
         GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken);
         Drive drive = new Drive.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
@@ -23,77 +28,138 @@ public class VideoProcessor {
         return drive;
     }
 
-    public ArrayList<String> processVideo(HashGenMessage message, Drive drive)
-    {
+    public ArrayList<String> processVideo(HashGenMessage message, Drive drive) {
         ArrayList<String> videoHashes = null;
         try {
             FileList result = drive.files().list().setFields(
                     "files(capabilities/canDownload,id,md5Checksum,mimeType,name,size,videoMediaMetadata,webContentLink)")
                     .execute();
-            java.io.File dir = new java.io.File("gmail");
+            final String pathname = String.valueOf(System.currentTimeMillis());
+            java.io.File dir = new java.io.File(pathname);
+//            if (dir.exists()) {
+//                deleteDirectory(dir);
+//            }
             dir.mkdir();
             URL url = new URL("https://www.googleapis.com/drive/v3/files/" + message.getVideoId() + "?alt=media");
             HttpRequest httpRequestGet = drive.getRequestFactory().buildGetRequest(new GenericUrl(url.toString()));
             httpRequestGet.getHeaders().setRange("bytes=" + 0 + "-");
             System.out.println(httpRequestGet.getHeaders());
-            HttpResponse resp = httpRequestGet.execute();
-            String pathname = "gmail" ;
             System.out.println(dir.getAbsolutePath());
+            String videoFileName = "video";
+            final String videoPath = pathname + "/" + videoFileName;
+            //String pathname = "vidupe";
+            final File downloadedVideoFile = new File(videoPath);
             OutputStream outputStream = new FileOutputStream(
-                    new java.io.File(pathname+"/"+ message.getVideoName()));
-            resp.download(outputStream);
-            extractKeyFrames(pathname+"/",message.getVideoName());
-            deleteFile(pathname+"/",message.getVideoName());
-            videoHashes = generateHashes(pathname);
+                    downloadedVideoFile);
+            HttpResponse resp;
+            try {
+                resp = httpRequestGet.execute();
+                resp.download(outputStream);
+                System.out.println(resp.getStatusCode()+" "+resp.getStatusMessage());
+            } finally {
+                outputStream.close();
+            }
+//            while (true){
+//                boolean checkStatus = isCompletelyWritten(downloadedVideoFile);
+//                if(checkStatus == true){
+//                    break;
+//                }
+//            }
 
+           // String fileNameWithoutExtension = FilenameUtils.removeExtension(message.getVideoName());
+            String keyFramesPath = pathname +"/"+"keyFrames";
+            File keyFramesDirectory = new File(keyFramesPath);
+            keyFramesDirectory.mkdir();
+
+            extractKeyFrames(pathname + "/", keyFramesPath, downloadedVideoFile);
+            videoHashes = generateHashes(keyFramesPath);
+            deleteFile(pathname+"/", videoFileName);
         } catch (IOException e) {
             e.printStackTrace();
         }
         return videoHashes;
     }
 
+    private void deleteDirectory(String path) {
+        File directory = new File(path);
+        String[] entries = directory.list();
+        for (String s : entries) {
+            File currentFile = new File(directory.getPath(), s);
+            currentFile.delete();
+        }
+        directory.delete();
+    }
+
     public void deleteFile(String pathname, String video_name) {
-        File file = new File(pathname+video_name);
+        File file = new File(pathname + video_name);
         if (file.exists()) {
             file.delete();
         }
     }
 
-    public void extractKeyFrames(String pathname,String videoName) {
-        String command="ffmpeg -i "+pathname+videoName+" -vf select=eq(pict_type\\,PICT_TYPE_I) -vsync vfr "+ pathname +"/thumb2_%04d.jpg -hide_banner -y";
+    public void extractKeyFrames(String pathname, String keyFramesPath, File videoName) {
+        String command = "ffmpeg -i " + pathname + videoName.getName() + " -vf select=eq(pict_type\\,PICT_TYPE_I) -vsync vfr " + keyFramesPath + "/%04d.jpg -hide_banner -y";
         Runtime runtime = Runtime.getRuntime();
         try {
             Process p = runtime.exec(command);
             p.waitFor();
+            p.getErrorStream();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-
     }
 
     public ArrayList<String> generateHashes(String pathname) {
-
         ImagePhash imgphash = new ImagePhash();
-        File directory = new File(pathname);
-        ArrayList<String> videoHash1 = new ArrayList<>();
-        int numberOfKeyframes = 0;
-        StringBuilder video_hashes = new StringBuilder();
-        File[] f = directory.listFiles();
-        if(f != null && f.length>0)
-            for (File file : f) {
-                if (file.getName().toLowerCase().endsWith(".jpg")) {
-                    try {
-                    String image1hash = imgphash.getHash(new FileInputStream(file));
-                    videoHash1.add(image1hash);
-                    video_hashes.append(image1hash+ "$");
-                    deleteFile(pathname, file.getName());
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
+        final Collection<File> collection = FileUtils.listFiles(new File(pathname), new String[]{"jpg", "jpeg"}, true);
+        ArrayList<String> hashes = new ArrayList<>();
+        final List<File> list = new ArrayList<>(collection);
+        list.sort(new Comparator<File>() {
+            @Override
+            public int compare(File file1, File file2) {
+                String fileName1 = FilenameUtils.removeExtension(file1.getName());
+                String fileName2 = FilenameUtils.removeExtension(file2.getName());
+                int fileNameInt1 = Integer.parseInt(fileName1);
+                int fileNameInt2 = Integer.parseInt(fileName2);
+                return fileNameInt1 - fileNameInt2;
+            }
+        });
+        System.out.println("number of keyframes "+list.size());
+        int size = list.size();
+        int i = 0;
+        for (File file : list) {
+            try {
+                String imageHash = imgphash.getHash(new FileInputStream(file));
+                hashes.add(imageHash);
+                i++;
+             } catch (Exception e) {
+                e.printStackTrace();
             }
 
-        return videoHash1;
+            if(i==size){
+                deleteDirectory(pathname);
+            }
+        }
+        return hashes;
     }
+    private boolean isCompletelyWritten(File file) {
+        RandomAccessFile stream = null;
+        try {
+            stream = new RandomAccessFile(file, "rw");
+            return true;
+        } catch (Exception e) {
+            System.out.println("Skipping file " + file.getName() + " for this iteration due it's not completely written");
+        } finally {
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException e) {
+                    System.out.println("Exception during closing file " + file.getName());
+                }
+            }
+        }
+        return false;
+    }
+
 }
 

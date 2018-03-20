@@ -55,21 +55,42 @@ public class VidupeStoreManager {
         return key;
     }
 
-    public void writeInDataStore(ArrayList<Long> hashes, HashGenMessage message) {
+    public boolean writeInDataStore(ArrayList<Long> hashes, HashGenMessage message) {
         final Entity entity = findByKey(message.getVideoId(), message.getEmail());
         writeHashesInDataStore(hashes, message);
-        updateUserEntityPropert(message);
+       // boolean canSendMessage = updateUserEntityProperty(message);
+        boolean canSendMessage = checkIfAllVideosAreProcessed(message);
+        System.out.println("Message to DeDupe"+canSendMessage);
         resetEntityProperty(entity);
+        return canSendMessage;
     }
 
-    private void updateUserEntityPropert(HashGenMessage message) {
+    public boolean checkIfAllVideosAreProcessed(HashGenMessage message) {
+        boolean canSend=false;
+        Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(message.getEmail());
+        Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
+                .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
+                .setFilter(StructuredQuery.PropertyFilter.eq(EntityProperties.PROCESSED, false))
+                .build();
+        QueryResults<Key> results = this.datastore.run(query);
+        Key[] keys = Iterators.toArray(results, Key.class);
+
+        if(keys.length == 0){
+            canSend = true;
+        }
+        return canSend;
+    }
+
+    private boolean updateUserEntityProperty(HashGenMessage message) {
         Key key = datastore.newKeyFactory().setKind("users").newKey(message.getEmail());
         Entity entity = datastore.get(key);
         long videosProcessed = entity.getLong(UserEntityProperties.VIDEOS_PROCESSED);
         long totalProcessed = entity.getLong(UserEntityProperties.TOTAL_VIDEOS);
         boolean done = false;
         final long updatedVideoProcessed = videosProcessed + 1;
-        if(updatedVideoProcessed == totalProcessed){
+        final long numberOfVideosNotProcessed = getNumberOfVideosNotProcessed(message);
+        System.out.println(updatedVideoProcessed);
+        if(numberOfVideosNotProcessed == 0){
              done = true;
         }
         Entity task = Entity.newBuilder(key)
@@ -82,6 +103,33 @@ public class VidupeStoreManager {
                 .set(UserEntityProperties.DONE, done)
                 .build();
         datastore.put(task);
+//        while(true){
+//            Entity e = datastore.get(key);
+//            long val = e.getLong(UserEntityProperties.VIDEOS_PROCESSED);
+//            if(val == updatedVideoProcessed){
+//                System.out.println(val+" ==== "+updatedVideoProcessed);
+//                return done;
+//            }
+//            else
+//            {
+//                datastore.put(task);
+//            }
+//        }
+        return done;
+    }
+
+    private int getNumberOfVideosNotProcessed(HashGenMessage message) {
+        //Key key = createKey(id, ancestorId);
+        Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(message.getEmail());
+
+        Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
+                .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
+                .setFilter(StructuredQuery.PropertyFilter.eq(EntityProperties.PROCESSED, false))
+                .build();
+        QueryResults<Key> results = this.datastore.run(query);
+        Key[] keys = Iterators.toArray(results, Key.class);
+
+        return keys.length;
     }
 
     public void writeHashesInDataStore(ArrayList<Long> hashes, HashGenMessage message) {
@@ -97,4 +145,6 @@ public class VidupeStoreManager {
         }
         datastore.put(Iterators.toArray(hashesList.iterator(), Entity.class));
     }
+
+
 }
