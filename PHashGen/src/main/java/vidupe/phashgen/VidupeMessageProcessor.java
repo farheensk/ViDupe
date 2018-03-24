@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.batching.BatchingSettings;
-import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.services.drive.Drive;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
@@ -78,8 +77,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
         try {
             // Create a publisher instance with default settings bound to the topic
             final BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
-            final RetrySettings retrySettings = RetrySettings.newBuilder().setMaxAttempts(3).setJittered(true).build();
-            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).setRetrySettings(retrySettings).build();
+            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).build();
             ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
