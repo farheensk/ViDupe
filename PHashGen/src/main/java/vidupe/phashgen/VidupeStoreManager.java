@@ -59,7 +59,7 @@ public class VidupeStoreManager {
         builder.append(e.getString(EntityProperties.VIDEO_NAME)).append(",");
         builder.append(e.getLong(EntityProperties.LAST_PROCESSED)).append(",");
         builder.append(e.getLong(EntityProperties.VIDEO_LAST_MODIFIED)).append(",");
-        builder.append(e.getBoolean(EntityProperties.PROCESSED)).append(",");
+        builder.append(e.getBoolean(EntityProperties.PROCESSED));
         return builder.toString();
 
     }
