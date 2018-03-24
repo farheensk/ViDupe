@@ -3,6 +3,8 @@ package vidupe.phashgen;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.gax.batching.BatchingSettings;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.services.drive.Drive;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
@@ -46,9 +48,10 @@ public class VidupeMessageProcessor implements MessageReceiver {
             ArrayList<String> hashes = videoProcessor.processVideo(hashGenMessage,drive);
             final ArrayList<Long> longHashes = convertStringHashesToLong(hashes);
 
-            final boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, hashGenMessage);
+            boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, hashGenMessage);
             if(canSendMessage){
-                DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(hashGenMessage.getJobId()).email(hashGenMessage.getEmail()).build();
+                DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(hashGenMessage.getJobId())
+                        .email(hashGenMessage.getEmail()).build();
                 publishMessage(messageToDeDupe);
             }
         } catch (Exception e) {
@@ -74,13 +77,19 @@ public class VidupeMessageProcessor implements MessageReceiver {
 
         try {
             // Create a publisher instance with default settings bound to the topic
-            publisher = Publisher.newBuilder(topicName).build();
+            final BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
+            final RetrySettings retrySettings = RetrySettings.newBuilder().setMaxAttempts(3).setJittered(true).build();
+            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).setRetrySettings(retrySettings).build();
             ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
             messageIdFutures.add(messageIdFuture);
 
-        } finally {
+        }
+        catch(Exception e) {
+            logger.error("An exception occurred when publishing message", e);
+        }
+        finally {
             // wait on any pending publish requests.
             List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
 
