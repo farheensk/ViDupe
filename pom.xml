@@ -9,6 +9,10 @@
     <module>Frontend</module>
     <module>Filter</module>
       <module>PHashGen</module>
+      <module>Audio</module>
+      <module>DeDupe</module>
+      <module>TestAuth</module>
+      <module>TestCloudStorage</module>
   </modules>
   <name>ViDupe Maven Webapp</name>
   <url>http://maven.apache.org</url>

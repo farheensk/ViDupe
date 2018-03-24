@@ -15,16 +15,25 @@ import com.google.cloud.datastore.Entity;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Publisher;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
+import vidupe.filter.constants.Constants;
+import vidupe.message.DeDupeMessage;
 import vidupe.message.FilterMessage;
 import vidupe.message.HashGenMessage;
 
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
+
+import static org.apache.http.protocol.HTTP.UTF_8;
 
 public class VidupeMessageProcessor implements MessageReceiver {
 
@@ -49,6 +58,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
             List<VideoMetaData> listFiles = filter(filterMessage);
 //        Long minHeight = Collections.min(listFiles, new MapComparator("height")).getHeight();
 //        Long minWidth = Collections.min(listFiles, new MapComparator("width")).getWidth();
+            String jobId = filterMessage.getJobId();
             String clientId = filterMessage.getEmail();
             int messageCount = 0;
             for (VideoMetaData videoMetaData : listFiles) {
@@ -68,7 +78,9 @@ public class VidupeMessageProcessor implements MessageReceiver {
                         messageCount++;
                 }
             }
-            vidupeStoreManager.updatePropertyOfUsers(clientId, messageCount);
+            System.out.println(listFiles.size()+"   "+messageCount);
+            analyzeListFilesAndMessageCount(filterMessage, listFiles, clientId, messageCount);
+            vidupeStoreManager.updatePropertyOfUsers(jobId,clientId, messageCount);
             vidupeStoreManager.deleteAllEntitiesIfNotExistsInDrive(clientId);
             consumer.ack();
         }
@@ -78,8 +90,47 @@ public class VidupeMessageProcessor implements MessageReceiver {
 
     }
 
+    private void analyzeListFilesAndMessageCount(FilterMessage filterMessage, List<VideoMetaData> listFiles, String clientId, int messageCount) throws Exception {
+        if(listFiles.size()>=2 && messageCount==0){
+            DeDupeMessage deDupeMessage = DeDupeMessage.builder().email(clientId).jobId(filterMessage.getJobId()).build();
+            publishMessageToDeDupe(deDupeMessage);
+        }
+        if(listFiles.size()==0 && messageCount == 0){
+            writeResultsToDataStore(filterMessage, "{}");
+        }
+    }
+    private void writeResultsToDataStore(FilterMessage filterMessage, String data) throws UnsupportedEncodingException {
+        Storage storage = StorageOptions.getDefaultInstance().getService();
+        Bucket bucket = storage.get("vidupe");
+        Blob blob = bucket.create(filterMessage.getEmail()+"/"+filterMessage.getJobId(), data.getBytes(UTF_8), "application/json");
+    }
+
+    private void publishMessageToDeDupe(DeDupeMessage deDupeMessage) throws Exception{
+        TopicName topicName = TopicName.of(Constants.PROJECT, Constants.PHASHGEN_TOPIC);
+        Publisher publisher = null;
+        List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
+
+        try {
+            // Create a publisher instance with default settings bound to the topic
+            publisher = Publisher.newBuilder(topicName).build();
+            ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
+            PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
+            ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
+            messageIdFutures.add(messageIdFuture);
+
+        } finally {
+            // wait on any pending publish requests.
+            List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
+
+            for (String messageId : messageIds) {
+                System.out.println("published with message ID: " + messageId);
+            }
+
+        }
+    }
+
     private void publishMessage(HashGenMessage hashGenMessage) throws Exception{
-        TopicName topicName = TopicName.of("winter-pivot-192220", "filter-topic");
+        TopicName topicName = TopicName.of(Constants.PROJECT, "filter-topic");
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
 

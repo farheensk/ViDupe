@@ -23,11 +23,14 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @WebServlet("/login")
 public class Login extends HttpServlet{
+    Datastore datastore;
     public static void publishMessages(FilterMessage message) throws Exception {
         // [START pubsub_publish]
         TopicName topicName = TopicName.of("winter-pivot-192220", "frontend-topic");
@@ -74,9 +77,9 @@ public class Login extends HttpServlet{
             conn = url.openConnection();
             StringBuilder content1 = readFromUrl(conn);
             GoogleAccount data = new Gson().fromJson(content1.toString(), GoogleAccount.class);
-
-            final String jobId = String.valueOf(System.currentTimeMillis());
+            String jobId = getUuid();
             String ifExists = createEntity(data, jobId);
+            addAccessTokenToDataStore(jobId, data.getEmail(), accessToken);
             FilterMessage mesesage = FilterMessage.builder()
                     .jobId(jobId)
                     .accessToken(accessToken)
@@ -85,27 +88,54 @@ public class Login extends HttpServlet{
                     .ifExists(ifExists)
                     .build();
             publishMessages(mesesage);
-
-            response.getWriter().print(data.getEmail()+ " "+accessToken);
-        } catch (Exception e) {
+            String storageURL = "https://storage.cloud.google.com/vidupe/";
+            String encodedEmail = URLEncoder.encode(data.getEmail(),"UTF-8");
+            String resultsURL = storageURL+encodedEmail+"/"+jobId;
+            System.out.println(resultsURL);
+            response.sendRedirect(request.getContextPath() + "/Results?jobid="+jobId+"&email="+data.getEmail());
+            } catch (Exception e) {
             e.printStackTrace();
         }
 
 
     }
 
+    private void addAccessTokenToDataStore(String jobId, String email, String accessToken) {
+        this.datastore = DatastoreOptions.newBuilder().setNamespace("vidupe").build().getService();
+        Key key = createTokenKey(jobId,email);
+        Entity entity = Entity.newBuilder(key)
+                .set("accessToken", accessToken).build();
+        datastore.put(entity);
+
+    }
+
+    private Key createTokenKey(String jobId, String email) {
+        Key key = datastore.newKeyFactory()
+                .setKind("tokens")
+                .addAncestors(PathElement.of("user", email))
+                .newKey(jobId);
+        return key;
+    }
+
+    public String getUuid() {
+        UUID idOne = UUID.randomUUID();
+        String UUIDinString = idOne.toString();
+        String jobID = UUIDinString.substring(0,8)+UUIDinString.substring(9,13)
+                +UUIDinString.substring(14,18)+UUIDinString.substring(19,23)+UUIDinString.substring(24);
+        return jobID;
+    }
+
     private String createEntity(GoogleAccount data, String jobId) {
 
-        Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-        Key key = datastore.newKeyFactory().setNamespace("vidupe").setKind("users").newKey(data.getEmail());
+        this.datastore = DatastoreOptions.newBuilder().setNamespace("vidupe").build().getService();
+        Key key = createKey(jobId, data.getEmail());
+               // key = datastore.newKeyFactory().setKind("users").newKey(data.getEmail());
         String ifExists = "false";
         Entity task = Entity.newBuilder(key)
-                .set(EntityProperties.JOB_ID, jobId)
                 .set(EntityProperties.USER_ID,data.getId())
-                .set(EntityProperties.NAME, StringValue.newBuilder(data.getName()).setExcludeFromIndexes(true).build())
+                .set(EntityProperties.NAME, data.getName())
                 .set(EntityProperties.EMAIL_ID,data.getEmail())
                 .set(EntityProperties.TOTAL_VIDEOS, 0)
-                .set(EntityProperties.VIDEOS_PROCESSED, 0)
                 .set(EntityProperties.CREATED, Timestamp.now())
                 .set(EntityProperties.DONE, false)
                 .build();
@@ -121,14 +151,19 @@ public class Login extends HttpServlet{
       return ifExists;
     }
 
+    public Key createKey(String keyName, String ancestorId) {
+        Key key = datastore.newKeyFactory()
+                .setKind("users")
+                .addAncestors(PathElement.of("user", ancestorId))
+                .newKey(keyName);
+        return key;
+    }
     private void resetEntityProperty(Datastore datastore, Key key, Entity task, String jobId) {
         Entity newtask = Entity.newBuilder(key)
-                .set(EntityProperties.JOB_ID, jobId)
                 .set(EntityProperties.USER_ID,task.getString(EntityProperties.USER_ID))
-                .set(EntityProperties.NAME, StringValue.newBuilder(task.getString(EntityProperties.NAME)).setExcludeFromIndexes(true).build())
+                .set(EntityProperties.NAME, task.getString(EntityProperties.NAME))
                 .set(EntityProperties.EMAIL_ID,task.getString(EntityProperties.EMAIL_ID))
                 .set(EntityProperties.TOTAL_VIDEOS, 0)
-                .set(EntityProperties.VIDEOS_PROCESSED, 0)
                 .set(EntityProperties.CREATED, task.getTimestamp(EntityProperties.CREATED))
                 .set(EntityProperties.DONE, false)
                 .build();

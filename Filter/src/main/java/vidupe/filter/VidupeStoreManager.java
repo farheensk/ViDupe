@@ -92,8 +92,8 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.DURATION, videoMetaData.getDuration())
                 .set(VideoEntityProperties.LAST_PROCESSED, Timestamp.now().getSeconds() * 1000)
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
-                .set(VideoEntityProperties.EXISTS_IN_DRIVE, BooleanValue.newBuilder(true).setExcludeFromIndexes(true).build())
-                .set(VideoEntityProperties.PROCESSED, BooleanValue.newBuilder(false).setExcludeFromIndexes(true).build())
+                .set(VideoEntityProperties.EXISTS_IN_DRIVE, true)
+                .set(VideoEntityProperties.PROCESSED, false)
                 .build();
     }
 
@@ -121,27 +121,34 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.DURATION, e.getLong(VideoEntityProperties.DURATION))
                 .set(VideoEntityProperties.LAST_PROCESSED, e.getLong(VideoEntityProperties.LAST_PROCESSED))
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
-                .set(VideoEntityProperties.EXISTS_IN_DRIVE, BooleanValue.newBuilder(value).setExcludeFromIndexes(true).build())
-                .set(VideoEntityProperties.PROCESSED, BooleanValue.newBuilder(e.getBoolean(VideoEntityProperties.PROCESSED)).setExcludeFromIndexes(true).build())
+                .set(VideoEntityProperties.EXISTS_IN_DRIVE, value)
+                .set(VideoEntityProperties.PROCESSED, e.getBoolean(VideoEntityProperties.PROCESSED))
                 .build();
         datastore.put(task);
     }
 
-    public void updatePropertyOfUsers(String clientId, int messageCount) {
+    public void updatePropertyOfUsers(String jobId, String clientId, int messageCount) {
         Datastore datastore = DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService();
-        Key key = datastore.newKeyFactory().setKind("users").newKey(clientId);
-        Entity entity = findUserKey(datastore, key);
+        Key key = createUserEntityKey(jobId, clientId);
+       // Key key = datastore.newKeyFactory().setKind("users").newKey(clientId);
+        Entity entity = findEntityOfUserTask(datastore, key);
         resetUserProperty(entity, key, messageCount);
+    }
+
+    private Key createUserEntityKey(String jobId, String clientId) {
+        Key key = datastore.newKeyFactory()
+                .setKind("users")
+                .addAncestors(PathElement.of("user", clientId))
+                .newKey(jobId);
+        return key;
     }
 
     public void resetUserProperty(Entity e, Key key, int messageCount) {
         Entity task = Entity.newBuilder(key)
-                .set(UserEntityProperties.JOB_ID, e.getString(UserEntityProperties.JOB_ID))
                 .set(UserEntityProperties.USER_ID, e.getString(UserEntityProperties.USER_ID))
-                .set(UserEntityProperties.NAME, StringValue.newBuilder(e.getString(UserEntityProperties.NAME)).setExcludeFromIndexes(true).build())
+                .set(UserEntityProperties.NAME, e.getString(UserEntityProperties.NAME))
                 .set(UserEntityProperties.EMAIL_ID, e.getString(UserEntityProperties.EMAIL_ID))
                 .set(UserEntityProperties.TOTAL_VIDEOS, messageCount)
-                .set(UserEntityProperties.VIDEOS_PROCESSED, 0)
                 .set(UserEntityProperties.CREATED, e.getTimestamp(UserEntityProperties.CREATED))
                 .set(UserEntityProperties.DONE, e.getBoolean(UserEntityProperties.DONE))
                 .build();
@@ -149,7 +156,7 @@ public class VidupeStoreManager {
     }
 
 
-    private Entity findUserKey(Datastore datastore, Key key) {
+    private Entity findEntityOfUserTask(Datastore datastore, Key key) {
         Query<Entity> query1 = Query.newEntityQueryBuilder()
                 .setFilter(StructuredQuery.PropertyFilter.eq("__key__", key))
                 .build();

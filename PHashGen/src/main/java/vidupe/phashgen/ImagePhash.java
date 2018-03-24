@@ -1,5 +1,8 @@
 package vidupe.phashgen;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.color.ColorSpace;
@@ -26,6 +29,7 @@ public class ImagePhash {
 	private int smallerSize = 8;
 	private ColorConvertOp colorConvert = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
 	private double[] c;
+	private static final Logger logger = LoggerFactory.getLogger(ImagePhash.class);
 
 	public ImagePhash() {
 
@@ -60,8 +64,8 @@ public class ImagePhash {
                 image1 = p.getHash(new FileInputStream(new File("/media/farheen/01D26F1D020D3380/sample/thumb720000"+(i+1)+".jpg")));
 
                 image2 = p.getHash(new FileInputStream(new File("/media/farheen/01D26F1D020D3380/sample/thumb240000"+(i+1)+".jpg")));
-                System.out.println(image1+" "+image2);
-                System.out.println("1:2 Score is " + p.distance(image1, image2));
+                logger.debug(image1+" "+image2);
+                logger.debug("1:2 Score is " + p.distance(image1, image2));
 
             }
         } catch (FileNotFoundException e) {
@@ -139,11 +143,9 @@ public class ImagePhash {
 
 		 */
 
-		long start = System.currentTimeMillis();
-
 		double[][] dctVals = applyDCT(vals);
 
-		System.out.println("DCT "+(System.currentTimeMillis() - start));
+		logger.debug("DCT start");
 
 		/* 4. Reduce the DCT.
 

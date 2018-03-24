@@ -10,6 +10,8 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.FileList;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import vidupe.message.HashGenMessage;
 
 import java.io.*;
@@ -20,6 +22,8 @@ import java.util.Comparator;
 import java.util.List;
 
 public class VideoProcessor {
+    private static final Logger logger = LoggerFactory.getLogger(VideoProcessor.class);
+
     public Drive getDrive(HashGenMessage message) {
         String accessToken = message.getAccessToken();
         GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken);
@@ -36,15 +40,11 @@ public class VideoProcessor {
                     .execute();
             final String pathname = String.valueOf(System.currentTimeMillis());
             java.io.File dir = new java.io.File(pathname);
-//            if (dir.exists()) {
-//                deleteDirectory(dir);
-//            }
-            dir.mkdir();
+            createDirectory(dir);
             URL url = new URL("https://www.googleapis.com/drive/v3/files/" + message.getVideoId() + "?alt=media");
             HttpRequest httpRequestGet = drive.getRequestFactory().buildGetRequest(new GenericUrl(url.toString()));
             httpRequestGet.getHeaders().setRange("bytes=" + 0 + "-");
-            System.out.println(httpRequestGet.getHeaders());
-            System.out.println(dir.getAbsolutePath());
+            logger.debug(httpRequestGet.getHeaders().toString());
             String videoFileName = "video";
             final String videoPath = pathname + "/" + videoFileName;
             //String pathname = "vidupe";
@@ -55,18 +55,11 @@ public class VideoProcessor {
             try {
                 resp = httpRequestGet.execute();
                 resp.download(outputStream);
-                System.out.println(resp.getStatusCode()+" "+resp.getStatusMessage());
+                logger.info("StatusCode=" + resp.getStatusCode()+", Status="+resp.getStatusMessage());
             } finally {
                 outputStream.close();
             }
-//            while (true){
-//                boolean checkStatus = isCompletelyWritten(downloadedVideoFile);
-//                if(checkStatus == true){
-//                    break;
-//                }
-//            }
 
-           // String fileNameWithoutExtension = FilenameUtils.removeExtension(message.getVideoName());
             String keyFramesPath = pathname +"/"+"keyFrames";
             File keyFramesDirectory = new File(keyFramesPath);
             keyFramesDirectory.mkdir();
@@ -78,6 +71,21 @@ public class VideoProcessor {
             e.printStackTrace();
         }
         return videoHashes;
+    }
+
+    private void createDirectory(File dir) {
+        boolean success = false;
+        for(int i=0; i<3; i++) {
+            success = dir.mkdir();
+            if(success) {
+                logger.info("Created directory " + dir.getName());
+                break;
+            }
+        }
+
+        if(!success) {
+          throw new RuntimeException("Couldn't create directory " + dir.getName());
+        }
     }
 
     private void deleteDirectory(String path) {
@@ -124,7 +132,7 @@ public class VideoProcessor {
                 return fileNameInt1 - fileNameInt2;
             }
         });
-        System.out.println("number of keyframes "+list.size());
+        logger.info("num_key_frames="+list.size());
         int size = list.size();
         int i = 0;
         for (File file : list) {
@@ -141,24 +149,6 @@ public class VideoProcessor {
             }
         }
         return hashes;
-    }
-    private boolean isCompletelyWritten(File file) {
-        RandomAccessFile stream = null;
-        try {
-            stream = new RandomAccessFile(file, "rw");
-            return true;
-        } catch (Exception e) {
-            System.out.println("Skipping file " + file.getName() + " for this iteration due it's not completely written");
-        } finally {
-            if (stream != null) {
-                try {
-                    stream.close();
-                } catch (IOException e) {
-                    System.out.println("Exception during closing file " + file.getName());
-                }
-            }
-        }
-        return false;
     }
 
 }

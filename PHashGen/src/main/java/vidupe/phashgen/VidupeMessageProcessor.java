@@ -10,6 +10,8 @@ import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import vidupe.constants.Constants;
 import vidupe.message.DeDupeMessage;
 import vidupe.message.HashGenMessage;
@@ -21,6 +23,7 @@ import java.util.List;
 public class VidupeMessageProcessor implements MessageReceiver {
 
     private VidupeStoreManager vidupeStoreManager;
+    private static final Logger logger = LoggerFactory.getLogger(VidupeMessageProcessor.class);
 
     public VidupeMessageProcessor(VidupeStoreManager vidupeStoreManager) {
         this.vidupeStoreManager = vidupeStoreManager;
@@ -42,7 +45,6 @@ public class VidupeMessageProcessor implements MessageReceiver {
             final Drive drive = videoProcessor.getDrive(hashGenMessage);
             ArrayList<String> hashes = videoProcessor.processVideo(hashGenMessage,drive);
             final ArrayList<Long> longHashes = convertStringHashesToLong(hashes);
-            System.out.println(hashes);
 
             final boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, hashGenMessage);
             if(canSendMessage){
@@ -50,7 +52,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
                 publishMessage(messageToDeDupe);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Message receive exception: ", e);
         }
 
         consumer.ack();
@@ -83,7 +85,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
             List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
 
             for (String messageId : messageIds) {
-                System.out.println("published with message ID: " + messageId);
+                logger.info("Published message. messageId=" + messageId+", jobId="+deDupeMessage.getJobId());
             }
 
         }

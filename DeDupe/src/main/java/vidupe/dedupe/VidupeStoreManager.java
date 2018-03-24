@@ -3,6 +3,8 @@ package vidupe.dedupe;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Iterators;
 import vidupe.constants.UserEntityProperties;
+import vidupe.constants.VideoEntityProperties;
+import vidupe.message.DeDupeMessage;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -132,5 +134,29 @@ public class VidupeStoreManager {
         String zeros = "0000000000000000000000000000000000000000000000000000000000000000"; //String of 64 zeros
         binaryString = zeros.substring(binaryString.length())+ binaryString;
         return binaryString;
+    }
+
+    public void changeExitsInDrivePropertyOfUser(DeDupeMessage deDupeMessage) {
+        Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(deDupeMessage.getEmail());
+        Query<Entity> query = Query.newEntityQueryBuilder().setKind("videos")
+                .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
+                .setOrderBy(StructuredQuery.OrderBy.asc("__key__"))
+                .build();
+        QueryResults<Entity> result = this.datastore.run(query);
+        Entity[] entities = Iterators.toArray(result, Entity.class);
+        for(Entity e:entities){
+            resetEntityProperty(e);
+        }
+    }
+    public void resetEntityProperty(Entity e) {
+        Entity task = Entity.newBuilder(e.getKey())
+                .set(VideoEntityProperties.VIDEO_NAME, e.getString(VideoEntityProperties.VIDEO_NAME))
+                .set(VideoEntityProperties.DURATION, e.getLong(VideoEntityProperties.DURATION))
+                .set(VideoEntityProperties.LAST_PROCESSED, e.getLong(VideoEntityProperties.LAST_PROCESSED))
+                .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, e.getLong(VideoEntityProperties.VIDEO_LAST_MODIFIED))
+                .set(VideoEntityProperties.EXISTS_IN_DRIVE, false)
+                .set(VideoEntityProperties.PROCESSED, e.getBoolean(VideoEntityProperties.PROCESSED))
+                .build();
+        datastore.put(task);
     }
 }

@@ -37,6 +37,11 @@
             <artifactId>gax</artifactId>
             <version>1.19.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-storage</artifactId>
+            <version>1.14.0</version>
+        </dependency>
 
         <!--<dependency>-->
         <!--<groupId>org.apache.openejb</groupId>-->
