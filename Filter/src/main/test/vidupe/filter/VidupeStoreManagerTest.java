@@ -1,6 +1,7 @@
 package vidupe.filter;
 
 import com.google.api.client.util.DateTime;
+import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Iterators;
 import org.junit.After;
@@ -19,6 +20,7 @@ import static org.junit.Assert.assertNotNull;
 public class VidupeStoreManagerTest {
 
     private static final String CLIENT_ID = "123456";
+    private static final String CLIENT_ID2 = "client2";
     private Datastore datastore;
     private VidupeStoreManager vidupeStoreManager;
     private List<String> keyList = new LinkedList<>();
@@ -33,7 +35,7 @@ public class VidupeStoreManagerTest {
         String id = getKey();
 
         VideoMetaData videoMetaData = VideoMetaData.builder().videoSize(100L).duration(10L).height(100L)
-                .width(100L).id(id).description("crap").name("test-name").dateModified(DateTime.parseRfc3339("2018-02-25T00:00:01Z")).build();
+                .width(100L).id(id).description("crap").name("test-name").dateModified(DateTime.parseRfc3339("2018-02-25T00:00:01Z")).thumbnailLink("link").build();
         assertNotNull(vidupeStoreManager.createEntity(videoMetaData, CLIENT_ID));
         vidupeStoreManager.deleteEntity(id, CLIENT_ID);
     }
@@ -52,7 +54,7 @@ public class VidupeStoreManagerTest {
 
     private VideoMetaData createVideoMetaData(String id, Date date) {
         return VideoMetaData.builder().videoSize(100L).duration(10L).height(100L).dateModified(new DateTime(date))
-                .width(100L).id(id).description("crap").name("test-name").build();
+                .width(100L).id(id).description("crap").name("test-name").thumbnailLink("link").build();
     }
 
    /* @Test
@@ -77,6 +79,55 @@ public class VidupeStoreManagerTest {
         assertEquals(true, video.getValue(VideoEntityProperties.EXISTS_IN_DRIVE).get());
     }
 
+    @Test
+    public void deleteAllEntitiesIfNotExistsInDriveTest() {
+        String videoId1 = getKey();
+        VideoMetaData videoMetaData = createVideoMetaData(videoId1, new Date());
+        VideoMetaData videoMetaData1 = createVideoMetaData(getKey(), new Date());
+        createEntity(videoMetaData, CLIENT_ID, false);
+        createEntity(videoMetaData1, CLIENT_ID, false);
+        videoMetaData = createVideoMetaData(videoId1, new Date());
+        videoMetaData1 = createVideoMetaData(getKey(), new Date());
+        createEntity(videoMetaData, CLIENT_ID2, true);
+        createEntity(videoMetaData1, CLIENT_ID2, true);
+        vidupeStoreManager.deleteAllEntitiesIfNotExistsInDrive(CLIENT_ID2);
+        Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(CLIENT_ID);
+        Query<Entity> query = Query.newEntityQueryBuilder().setKind("videos")
+                .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
+                .build();
+        QueryResults<Entity> result = this.datastore.run(query);
+        Entity[] entities = Iterators.toArray(result, Entity.class);
+        for(Entity e: entities){
+            System.out.println(e);
+        }
+
+
+    }
+
+    public Entity createEntity(VideoMetaData videoMetaData, String ancestorId, boolean ifExists) {
+        Entity entity = fillEntity(videoMetaData, ancestorId, ifExists);
+        return datastore.add(entity);
+    }
+    private Entity fillEntity(VideoMetaData videoMetaData, String ancestorId, boolean ifExists) {
+
+        Key key = createKey(videoMetaData.getId(), ancestorId);
+        return Entity.newBuilder(key)
+                .set(VideoEntityProperties.VIDEO_NAME, videoMetaData.getName())
+                .set(VideoEntityProperties.DURATION, videoMetaData.getDuration())
+                .set(VideoEntityProperties.LAST_PROCESSED, Timestamp.now().getSeconds() * 1000)
+                .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, 12342)
+                .set(VideoEntityProperties.EXISTS_IN_DRIVE, ifExists)
+                .set(VideoEntityProperties.PROCESSED, false)
+                .set(VideoEntityProperties.THUMBNAIL_LINK, videoMetaData.getThumbnailLink())
+                .build();
+    }
+    public Key createKey(String keyName, String ancestorId) {
+        Key key = datastore.newKeyFactory()
+                .setKind("videos")
+                .addAncestors(PathElement.of("user", ancestorId))
+                .newKey(keyName);
+        return key;
+    }
     @Test
     public void sortByIdTest(){
         String videoMetaId1 = "999";
@@ -109,5 +160,6 @@ public class VidupeStoreManagerTest {
             vidupeStoreManager.deleteEntity(k, CLIENT_ID);
         }
     }
+
 
 }

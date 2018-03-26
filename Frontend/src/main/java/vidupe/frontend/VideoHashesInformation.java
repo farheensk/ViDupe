@@ -13,6 +13,7 @@ public class VideoHashesInformation {
     String videoID;
     String videoName;
     long duration;
+    String thumbnailLink;
     List<List<String>> hashes;
 
 }

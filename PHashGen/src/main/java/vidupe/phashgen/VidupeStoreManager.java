@@ -48,6 +48,7 @@ public class VidupeStoreManager {
                 .set(EntityProperties.VIDEO_LAST_MODIFIED, e.getLong(EntityProperties.VIDEO_LAST_MODIFIED))
                 .set(EntityProperties.EXISTS_IN_DRIVE, e.getBoolean(EntityProperties.EXISTS_IN_DRIVE))
                 .set(EntityProperties.PROCESSED, true)
+                .set(EntityProperties.THUMBNAIL_LINK, e.getString(EntityProperties.THUMBNAIL_LINK))
                 .build();
         final Entity modifiedEntity = datastore.put(task);
         logger.info("Entity marked as processed, key=" + e.getKey());

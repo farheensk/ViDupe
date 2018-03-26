@@ -9,6 +9,8 @@ import com.google.gson.Gson;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import vidupe.constants.EntityProperties;
 import vidupe.message.FilterMessage;
 
@@ -30,6 +32,8 @@ import java.util.UUID;
 
 @WebServlet("/login")
 public class Login extends HttpServlet{
+    private static final Logger logger = LoggerFactory.getLogger(Delete.class);
+
     Datastore datastore;
     public static void publishMessages(FilterMessage message) throws Exception {
         // [START pubsub_publish]
@@ -52,7 +56,7 @@ public class Login extends HttpServlet{
             List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
 
             for (String messageId : messageIds) {
-                System.out.println("published with message ID: " + messageId);
+                logger.info("Published message. messageId=" + messageId + ", jobId=" + message.getJobId());
             }
 
         }
@@ -91,7 +95,7 @@ public class Login extends HttpServlet{
             String storageURL = "https://storage.cloud.google.com/vidupe/";
             String encodedEmail = URLEncoder.encode(data.getEmail(),"UTF-8");
             String resultsURL = storageURL+encodedEmail+"/"+jobId;
-            System.out.println(resultsURL);
+            logger.info("Results_available_at "+resultsURL);
             response.sendRedirect(request.getContextPath() + "/Results?jobid="+jobId+"&email="+data.getEmail());
             } catch (Exception e) {
             e.printStackTrace();

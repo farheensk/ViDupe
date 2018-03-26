@@ -3,12 +3,14 @@ package vidupe.filter;
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Iterators;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import vidupe.filter.constants.Constants;
 import vidupe.filter.constants.UserEntityProperties;
 import vidupe.filter.constants.VideoEntityProperties;
 
 public class VidupeStoreManager {
-
+    private static final Logger logger = LoggerFactory.getLogger(VidupeMessageProcessor.class);
     private final Datastore datastore;
 
     public VidupeStoreManager(Datastore dataStore) {
@@ -18,11 +20,14 @@ public class VidupeStoreManager {
     public void deleteAllEntitiesIfNotExistsInDrive(String ancestorId) {
         Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(ancestorId);
         Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
-                .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
-                .setFilter(StructuredQuery.PropertyFilter.eq(VideoEntityProperties.EXISTS_IN_DRIVE, false))
+                .setFilter(
+                        StructuredQuery.CompositeFilter.and(
+                                StructuredQuery.PropertyFilter.hasAncestor(ancestorPath),
+                                StructuredQuery.PropertyFilter.eq(VideoEntityProperties.EXISTS_IN_DRIVE, false)))
                 .build();
         QueryResults<Key> result = this.datastore.run(query);
-        final Key[] keys = Iterators.toArray(result, Key.class);
+        Key[] keys = Iterators.toArray(result, Key.class);
+
         deleteHashesRelatedToEntity(keys, ancestorId);
         this.datastore.delete(keys);
     }
@@ -46,7 +51,7 @@ public class VidupeStoreManager {
     }
 
     public Entity findByKey(String id, String ancestorId) {
-//        System.out.println("Finding key :" + id);
+        logger.info("Finding key :" + id);
         Key key = createKey(id, ancestorId);
 
         Query<Entity> query1 = Query.newEntityQueryBuilder()
@@ -94,6 +99,7 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, true)
                 .set(VideoEntityProperties.PROCESSED, false)
+                .set(VideoEntityProperties.THUMBNAIL_LINK, videoMetaData.getThumbnailLink())
                 .build();
     }
 
@@ -123,6 +129,7 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, value)
                 .set(VideoEntityProperties.PROCESSED, e.getBoolean(VideoEntityProperties.PROCESSED))
+                .set(VideoEntityProperties.THUMBNAIL_LINK, e.getString(VideoEntityProperties.THUMBNAIL_LINK))
                 .build();
         datastore.put(task);
     }
@@ -130,7 +137,6 @@ public class VidupeStoreManager {
     public void updatePropertyOfUsers(String jobId, String clientId, int messageCount) {
         Datastore datastore = DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService();
         Key key = createUserEntityKey(jobId, clientId);
-       // Key key = datastore.newKeyFactory().setKind("users").newKey(clientId);
         Entity entity = findEntityOfUserTask(datastore, key);
         resetUserProperty(entity, key, messageCount);
     }

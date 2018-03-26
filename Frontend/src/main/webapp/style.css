@@ -67,6 +67,21 @@ background-image: url("1.png");
   font-size: 16px;
   color: #FFF;
 }
+
+.loginBtn1 {
+  box-sizing: border-box;
+      position: relative;
+      margin: 0.2em;
+      /* padding: 0 15px 0 46px; */
+      border: none;
+      text-align: left;
+      line-height: 34px;
+      white-space: nowrap;
+      border-radius: 0.2em;
+      font-size: 16px;
+      color: #FFF;
+}
+
 .loginBtn:before {
   content: "";
   box-sizing: border-box;

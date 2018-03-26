@@ -53,8 +53,9 @@ public class VidupeStoreManager {
             List<List<String>> hashesAfterIntraComparison = intraComparison(hashes, 19);
             VideoHashesInformation video1 = VideoHashesInformation.builder()
                     .videoID(videoId.getName())
-                    .videoName(e.getString("video-name"))
-                    .duration(e.getLong("duration"))
+                    .videoName(e.getString(VideoEntityProperties.VIDEO_NAME))
+                    .duration(e.getLong(VideoEntityProperties.DURATION))
+                    .thumbnailLink(e.getString(VideoEntityProperties.THUMBNAIL_LINK))
                     .hashes(hashesAfterIntraComparison).build();
             videoHashes.add(video1);
         }
@@ -156,6 +157,7 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, e.getLong(VideoEntityProperties.VIDEO_LAST_MODIFIED))
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, false)
                 .set(VideoEntityProperties.PROCESSED, e.getBoolean(VideoEntityProperties.PROCESSED))
+                .set(VideoEntityProperties.THUMBNAIL_LINK, e.getString(VideoEntityProperties.THUMBNAIL_LINK))
                 .build();
         datastore.put(task);
     }

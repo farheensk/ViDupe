@@ -22,6 +22,8 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import vidupe.filter.constants.Constants;
 import vidupe.message.DeDupeMessage;
 import vidupe.message.FilterMessage;
@@ -38,13 +40,22 @@ import static org.apache.http.protocol.HTTP.UTF_8;
 public class VidupeMessageProcessor implements MessageReceiver {
 
     private VidupeStoreManager vidupeStoreManager;
+    private static final Logger logger = LoggerFactory.getLogger(VidupeMessageProcessor.class);
+
 
     public VidupeMessageProcessor(VidupeStoreManager vidupeStoreManager) {
         this.vidupeStoreManager = vidupeStoreManager;
     }
 
-    private static VideoMetaData getMetaData(String id, String name, String description, DateTime dateModified, long size, long duration, long height, long width) {
-        return VideoMetaData.builder().id(id).name(name).description(description).dateModified(dateModified).videoSize(size).duration(duration).height(height).width(width).build();
+    private static VideoMetaData getMetaData(String id, String name, String description, DateTime dateModified, long size, long duration, long height, long width, String thumbnailLink) {
+        return VideoMetaData.builder().id(id).name(name)
+                .description(description)
+                .dateModified(dateModified)
+                .videoSize(size)
+                .duration(duration)
+                .height(height)
+                .width(width)
+                .thumbnailLink(thumbnailLink).build();
     }
 
     @Override
@@ -78,7 +89,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
                         messageCount++;
                 }
             }
-            System.out.println(listFiles.size()+"   "+messageCount);
+            logger.info("Number of videos to process: "+listFiles.size()+" , message_count "+messageCount);
             analyzeListFilesAndMessageCount(filterMessage, listFiles, clientId, messageCount);
             vidupeStoreManager.updatePropertyOfUsers(jobId,clientId, messageCount);
             vidupeStoreManager.deleteAllEntitiesIfNotExistsInDrive(clientId);
@@ -118,19 +129,22 @@ public class VidupeMessageProcessor implements MessageReceiver {
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
             messageIdFutures.add(messageIdFuture);
 
-        } finally {
+        }  catch(Exception e) {
+            logger.error("An exception occurred when publishing message", e);
+        }
+        finally {
             // wait on any pending publish requests.
             List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
 
             for (String messageId : messageIds) {
-                System.out.println("published with message ID: " + messageId);
+                logger.info("Published message. messageId=" + messageId+", jobId="+deDupeMessage.getJobId());
             }
 
         }
     }
 
     private void publishMessage(HashGenMessage hashGenMessage) throws Exception{
-        TopicName topicName = TopicName.of(Constants.PROJECT, "filter-topic");
+        TopicName topicName = TopicName.of(Constants.PROJECT, Constants.FILTER_TOPIC);
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
 
@@ -141,16 +155,19 @@ public class VidupeMessageProcessor implements MessageReceiver {
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
             messageIdFutures.add(messageIdFuture);
-
-        } finally {
-            // wait on any pending publish requests.
-            List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
-
-            for (String messageId : messageIds) {
-                System.out.println("published with message ID: " + messageId);
-            }
-
         }
+         catch(Exception e) {
+                logger.error("An exception occurred when publishing message", e);
+            }
+        finally {
+                // wait on any pending publish requests.
+                List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
+
+                for (String messageId : messageIds) {
+                    logger.info("Published message. messageId=" + messageId+", jobId="+hashGenMessage.getJobId());
+                }
+
+            }
     }
 
     boolean sendToHashGen(String clientId, VideoMetaData videoMetaData) {
@@ -174,7 +191,13 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     public List<VideoMetaData> filter(FilterMessage filterMessage) {
-        final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE);
+        final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE,
+                DriveScopes.DRIVE_PHOTOS_READONLY,
+                DriveScopes.DRIVE_FILE,
+                DriveScopes.DRIVE_METADATA,
+                DriveScopes.DRIVE_METADATA_READONLY,
+                DriveScopes.DRIVE_APPDATA,
+                DriveScopes.DRIVE_READONLY);
         List<VideoMetaData> filteredMetaData = null;
         try {
             String accessToken = filterMessage.getAccessToken();
@@ -183,9 +206,9 @@ public class VidupeMessageProcessor implements MessageReceiver {
             Drive drive = new Drive.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
                     .setApplicationName("Duplicate video Detection").build();
             FileList result = drive.files().list().setFields(
-                    "files(capabilities/canDownload,id,md5Checksum,mimeType,name,size,videoMediaMetadata,webContentLink)")
+                    "files(capabilities/canDownload,id,md5Checksum,mimeType,thumbnailLink,name,size,videoMediaMetadata,webContentLink)")
                     .execute();
-           // FileList result = drive.files().list().execute();
+         //   result = drive.files().list().execute();
             List<File> files = result.getFiles();
            // List<File> files = result.getFiles();
 
@@ -195,22 +218,20 @@ public class VidupeMessageProcessor implements MessageReceiver {
             for (File file : files) {
                 String type = file.getMimeType();
                 if (Pattern.matches("video/.*", type)) {
-
+                    String thumbnail_link = file.getThumbnailLink();
                     File.VideoMediaMetadata video_Media_MetaData = file.getVideoMediaMetadata();
                         metaDataList.add(getMetaData(file.getId(), file.getName(), file.getDescription(), file.getModifiedTime(), file.getSize(),
-                                video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth()));
+                                video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth(), thumbnail_link));
 
                         height_list.add(video_Media_MetaData.getHeight().longValue());
                         width_list.add(video_Media_MetaData.getWidth().longValue());
                     }
-
             }
             DurationFilter filter = new DurationFilter();
             filteredMetaData = filter.filterOutDurations(metaDataList);
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         return filteredMetaData;
     }
 }

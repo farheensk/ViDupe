@@ -5,6 +5,8 @@ import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.pubsub.v1.SubscriptionName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import vidupe.filter.constants.Constants;
 
 import javax.servlet.annotation.WebServlet;
@@ -15,6 +17,8 @@ import java.util.List;
 
 @WebServlet("/filter")
 public class FilterDrive extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(FilterDrive.class);
+
     public List<VideoMetaData> listFiles;
 
     public void doGet(HttpServletRequest request, HttpServletResponse response) {
@@ -38,7 +42,7 @@ public class FilterDrive extends HttpServlet {
                     @Override
                     public void failed(Subscriber.State from, Throwable failure) {
                         // Handle failure. This is called when the Subscriber encountered a fatal error and is shutting down.
-                        System.err.println(failure);
+                       logger.debug("Subscriber encountered a fatal error:",failure);
                     }
                 },
                 MoreExecutors.directExecutor());

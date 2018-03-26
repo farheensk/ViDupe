@@ -6,6 +6,8 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.cloud.datastore.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -18,10 +20,12 @@ import java.util.List;
 
 @WebServlet("/delete")
 public class Delete extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(Delete.class);
+
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String jobId = request.getParameter("jobid");
         String email = request.getParameter("email");
-        System.out.println(jobId+"   "+email);
+        logger.info("Preparing to delete videos of : jobId:"+jobId+" ,email:  "+email);
 
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
@@ -40,6 +44,8 @@ public class Delete extends HttpServlet {
         if(request.getParameterValues("video_array")!=null){
             String [] result = request.getParameterValues("video_array");
             if(result.length>0){
+                logger.info("Deleting videos of : jobId:"+jobId+" ,email:  "+email);
+
                 final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE);
                 Datastore datastore = DatastoreOptions.newBuilder().setNamespace("vidupe").build().getService();
                 Key key = datastore.newKeyFactory()

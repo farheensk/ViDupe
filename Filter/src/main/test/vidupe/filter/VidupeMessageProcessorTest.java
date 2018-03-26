@@ -60,7 +60,7 @@ public class VidupeMessageProcessorTest {
 
     private VideoMetaData createVideoMetaData(String id, DateTime dateTime) {
         return VideoMetaData.builder().videoSize(100L).duration(10L).height(100L).dateModified(dateTime)
-                .width(100L).id(id).description("crap").name("test-name").build();
+                .width(100L).id(id).description("crap").name("test-name").thumbnailLink("link").build();
     }
 
     private String getKey() {
@@ -85,7 +85,7 @@ public class VidupeMessageProcessorTest {
         Datastore datastore = DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService();
         VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(datastore);
         VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
-        FilterMessage filterMessage = FilterMessage.builder().accessToken("ya29.GluDBTDk0hK2LidQqxoJsVCujoNFjts8EQ7jPlfoiBfBTmv5AM6DtGUDK1lJX8xMcgu7a79Qg_3qLhxGaGUYUk0bikqd9M3rhNUdMbUWJPDSv8sR5xaC_SWmIMaV").build();
+        FilterMessage filterMessage = FilterMessage.builder().accessToken("ya29.GluIBbOPssVV7tOuc2x95tibiAIItzlYlpRY215Tlf4olr31ETWNqTWHRyG_G5k4IV7IiOpzYbZUO2iiQa7KRkMgJSkhXIDNC1iitzmbv7HwR6Vms2CwF5lDH-VC").build();
         vidupeMessageProcessor.filter(filterMessage);
 
     }
