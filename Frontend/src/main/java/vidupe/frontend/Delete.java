@@ -46,7 +46,7 @@ public class Delete extends HttpServlet {
             if(result.length>0){
                 logger.info("Deleting videos of : jobId:"+jobId+" ,email:  "+email);
 
-                final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE);
+                List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE);
                 Datastore datastore = DatastoreOptions.newBuilder().setNamespace("vidupe").build().getService();
                 Key key = datastore.newKeyFactory()
                         .setKind("tokens")

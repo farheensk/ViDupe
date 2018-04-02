@@ -47,7 +47,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
         this.vidupeStoreManager = vidupeStoreManager;
     }
 
-    private static VideoMetaData getMetaData(String id, String name, String description, DateTime dateModified, long size, long duration, long height, long width, String thumbnailLink) {
+    private static VideoMetaData getMetaData(String id, String name, String description, DateTime dateModified, long size, long duration, long height, long width) {
         return VideoMetaData.builder().id(id).name(name)
                 .description(description)
                 .dateModified(dateModified)
@@ -55,7 +55,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
                 .duration(duration)
                 .height(height)
                 .width(width)
-                .thumbnailLink(thumbnailLink).build();
+                .build();
     }
 
     @Override
@@ -67,15 +67,11 @@ public class VidupeMessageProcessor implements MessageReceiver {
         try {
             filterMessage = mapper.readValue(messageString, FilterMessage.class);
             List<VideoMetaData> listFiles = filter(filterMessage);
-//        Long minHeight = Collections.min(listFiles, new MapComparator("height")).getHeight();
-//        Long minWidth = Collections.min(listFiles, new MapComparator("width")).getWidth();
             String jobId = filterMessage.getJobId();
             String clientId = filterMessage.getEmail();
             int messageCount = 0;
             for (VideoMetaData videoMetaData : listFiles) {
-
                 boolean proceedToHashGen = sendToHashGen(clientId, videoMetaData);
-
                 if (proceedToHashGen) {
                     HashGenMessage hashGenMessage = HashGenMessage.builder().accessToken(filterMessage.getAccessToken())
                             .jobId(filterMessage.getJobId())
@@ -102,8 +98,8 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     private void analyzeListFilesAndMessageCount(FilterMessage filterMessage, List<VideoMetaData> listFiles, String clientId, int messageCount) throws Exception {
-        if(listFiles.size()>=2 && messageCount==0){
-            DeDupeMessage deDupeMessage = DeDupeMessage.builder().email(clientId).jobId(filterMessage.getJobId()).build();
+        if(listFiles.size()>=2 && messageCount == 0){
+            DeDupeMessage deDupeMessage = DeDupeMessage.builder().email(clientId).jobId(filterMessage.getJobId()).totalVideos(messageCount).build();
             publishMessageToDeDupe(deDupeMessage);
         }
         if(listFiles.size()==0 && messageCount == 0){
@@ -173,58 +169,58 @@ public class VidupeMessageProcessor implements MessageReceiver {
     boolean sendToHashGen(String clientId, VideoMetaData videoMetaData) {
         boolean proceedToHashGen = false;
         Entity entity = vidupeStoreManager.findByKey(videoMetaData.getId(), clientId);
-
-        if(entity == null) {
-            Entity entityCreated = vidupeStoreManager.createEntity(videoMetaData, clientId);
-            proceedToHashGen = (entityCreated != null);
+        if(videoMetaData.getVideoSize()>500000000){
+            if(entity == null){
+                Entity entityCreated = vidupeStoreManager.createEntity(videoMetaData, clientId);
+                proceedToHashGen = false;
+            }
+            else
+            {
+                boolean shouldReplaceEntity = vidupeStoreManager.isModified(entity, videoMetaData);
+                if(shouldReplaceEntity) {
+                    vidupeStoreManager.putEntity(videoMetaData, clientId);
+                    proceedToHashGen = false;
+                } else {
+                    vidupeStoreManager.resetEntityProperty(entity, videoMetaData, true);
+                }
+            }
         }
-       else {
-            boolean shouldReplaceEntity = vidupeStoreManager.isModified(entity, videoMetaData);
-            if(shouldReplaceEntity) {
-                vidupeStoreManager.putEntity(videoMetaData, clientId);
-                proceedToHashGen = true;
+        else {
+            if (entity == null) {
+                Entity entityCreated = vidupeStoreManager.createEntity(videoMetaData, clientId);
+                proceedToHashGen = (entityCreated != null);
             } else {
-                vidupeStoreManager.resetEntityProperty(entity, videoMetaData, true);
+                boolean shouldReplaceEntity = vidupeStoreManager.isModified(entity, videoMetaData);
+                if (shouldReplaceEntity) {
+                    vidupeStoreManager.putEntity(videoMetaData, clientId);
+                    proceedToHashGen = true;
+                } else {
+                    vidupeStoreManager.resetEntityProperty(entity, videoMetaData, true);
+                }
             }
         }
         return proceedToHashGen;
     }
 
     public List<VideoMetaData> filter(FilterMessage filterMessage) {
-        final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE,
-                DriveScopes.DRIVE_PHOTOS_READONLY,
-                DriveScopes.DRIVE_FILE,
-                DriveScopes.DRIVE_METADATA,
-                DriveScopes.DRIVE_METADATA_READONLY,
-                DriveScopes.DRIVE_APPDATA,
-                DriveScopes.DRIVE_READONLY);
+        final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE);
         List<VideoMetaData> filteredMetaData = null;
         try {
             String accessToken = filterMessage.getAccessToken();
             GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken).createScoped(SCOPES);
-
             Drive drive = new Drive.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
                     .setApplicationName("Duplicate video Detection").build();
             FileList result = drive.files().list().setFields(
-                    "files(capabilities/canDownload,id,md5Checksum,mimeType,thumbnailLink,name,size,videoMediaMetadata,webContentLink)")
+                    "files(capabilities/canDownload,id,md5Checksum,mimeType,name,size,videoMediaMetadata,webContentLink)")
                     .execute();
-         //   result = drive.files().list().execute();
             List<File> files = result.getFiles();
-           // List<File> files = result.getFiles();
-
             List<VideoMetaData> metaDataList = new ArrayList<>();
-            List<Long> height_list = new ArrayList<>();
-            List<Long> width_list = new ArrayList<>();
             for (File file : files) {
                 String type = file.getMimeType();
                 if (Pattern.matches("video/.*", type)) {
-                    String thumbnail_link = file.getThumbnailLink();
                     File.VideoMediaMetadata video_Media_MetaData = file.getVideoMediaMetadata();
                         metaDataList.add(getMetaData(file.getId(), file.getName(), file.getDescription(), file.getModifiedTime(), file.getSize(),
-                                video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth(), thumbnail_link));
-
-                        height_list.add(video_Media_MetaData.getHeight().longValue());
-                        width_list.add(video_Media_MetaData.getWidth().longValue());
+                                video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth()));
                     }
             }
             DurationFilter filter = new DurationFilter();

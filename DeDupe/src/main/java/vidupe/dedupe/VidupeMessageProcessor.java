@@ -44,9 +44,10 @@ public class VidupeMessageProcessor implements MessageReceiver {
         DeDupeMessage deDupeMessage;
         try {
             deDupeMessage = mapper.readValue(messageString, DeDupeMessage.class);
-            final List<VideoHashesInformation> videoHashesFromStore = retrieveVideoHashes(deDupeMessage);
-            videoHashesFromStore.sort(new MapComparator("duration"));
-            final List<List<VideoHashesInformation>> duplicates = groupDuplicateVideoFiles(videoHashesFromStore);
+            List<VideoHashesInformation> videoHashesFromStore = retrieveVideoHashes(deDupeMessage);
+            DurationFilter filter= new DurationFilter();
+            filter.filterOutDurations(videoHashesFromStore);
+            List<List<VideoHashesInformation>> duplicates = groupDuplicateVideoFiles(videoHashesFromStore);
             DuplicateVideosList duplicateVideosList = DuplicateVideosList.builder()
                     .duplicateVideosList(duplicates).build();
             writeResultsToDataStore(deDupeMessage, duplicateVideosList);
@@ -67,7 +68,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     private void writeResultsToDataStore(DeDupeMessage deDupeMessage, DuplicateVideosList duplicateVideosList) throws UnsupportedEncodingException {
-        final String dataToFile = duplicateVideosList.toJsonString();
+        String dataToFile = duplicateVideosList.toJsonString();
         ByteString data = ByteString.copyFromUtf8(dataToFile);
         Storage storage = StorageOptions.getDefaultInstance().getService();
         Bucket bucket = storage.get("vidupe");
@@ -107,9 +108,9 @@ public class VidupeMessageProcessor implements MessageReceiver {
         }
     }
 
-    private List<VideoHashesInformation> retrieveVideoHashes(DeDupeMessage deDupeMessage) {
-        final Key[] videoIdsOfUser = vidupeStoreManager.getVideoIdsOfUser(deDupeMessage.getEmail());
-        final List<VideoHashesInformation> videoHashesFromStore = vidupeStoreManager.getVideoHashesFromStore(videoIdsOfUser, deDupeMessage.getEmail());
+    List<VideoHashesInformation> retrieveVideoHashes(DeDupeMessage deDupeMessage) {
+        Key[] videoIdsOfUser = vidupeStoreManager.getVideoIdsOfUser(deDupeMessage.getEmail());
+        List<VideoHashesInformation> videoHashesFromStore = vidupeStoreManager.getVideoHashesFromStore(videoIdsOfUser, deDupeMessage.getEmail());
         return videoHashesFromStore;
     }
 
@@ -122,20 +123,26 @@ public class VidupeMessageProcessor implements MessageReceiver {
             List<VideoHashesInformation> video1Duplicates = new ArrayList<>();
             if(flag[i] == 0){
                 flag[i] =1;
-                final VideoHashesInformation video1 = videoHashesFromStore.get(i);
+                VideoHashesInformation video1 = videoHashesFromStore.get(i);
                 video1Duplicates.add(video1);
-                smallDuration = video1.duration;
+                smallDuration = video1.getDuration();
                 for(int j = i + 1; j < size; j++){
-                    final VideoHashesInformation video2 = videoHashesFromStore.get(j);
-                    if((smallDuration - video2.duration)<=(smallDuration*0.1)){
-                        smallDuration = (smallDuration<video2.duration)?smallDuration:video2.duration;
+                    VideoHashesInformation video2 = videoHashesFromStore.get(j);
+                //    if((smallDuration - video2.getDuration())<=(smallDuration*0.1)){
+
+//                        smallDuration = (smallDuration<video2.duration)?smallDuration:video2.duration;
                         double distance = distanceBetweenVideos(video1, video2);
                         System.out.println(distance);
                         if(distance>=0.4){
+                            if(smallDuration>video2.getDuration()){
+                                video1 = videoHashesFromStore.get(j);
+                                smallDuration = video1.getDuration();
+                            }
                             flag[j] = 1;
                             video1Duplicates.add(video2);
                         }
-                    }
+
+                    //}
                 }
                 if(video1Duplicates.size()>1)
                     duplicatesList.add(video1Duplicates);
@@ -145,9 +152,9 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     public double distanceBetweenVideos(VideoHashesInformation video1, VideoHashesInformation video2) {
-        final List<List<String>> hashesList1 = video1.getHashes();
+        List<List<String>> hashesList1 = video1.getHashes();
         int N1 = hashesList1.size();
-        final List<List<String>> hashesList2 = video2.getHashes();
+        List<List<String>> hashesList2 = video2.getHashes();
         int N2 = hashesList2.size();
         int den = (N1 >= N2) ? N1 : N2;
         int C[][] = new int[N1 + 1][N2 + 1];

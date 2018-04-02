@@ -60,7 +60,7 @@ public class VidupeMessageProcessorTest {
 
     private VideoMetaData createVideoMetaData(String id, DateTime dateTime) {
         return VideoMetaData.builder().videoSize(100L).duration(10L).height(100L).dateModified(dateTime)
-                .width(100L).id(id).description("crap").name("test-name").thumbnailLink("link").build();
+                .width(100L).id(id).description("crap").name("test-name").build();
     }
 
     private String getKey() {

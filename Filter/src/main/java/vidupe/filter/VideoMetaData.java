@@ -15,5 +15,4 @@ public class VideoMetaData {
     private long duration;
     private long height;
     private long width;
-    private String thumbnailLink;
 }

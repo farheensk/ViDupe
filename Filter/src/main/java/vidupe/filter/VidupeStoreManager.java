@@ -89,7 +89,12 @@ public class VidupeStoreManager {
     }
 
     private Entity fillEntity(VideoMetaData videoMetaData, String ancestorId) {
-
+        boolean processed = false;
+        long numKeyFrames = 0;
+        if(videoMetaData.getVideoSize()>500000000){
+            processed = true;
+            numKeyFrames = -1;
+        }
         Key key = createKey(videoMetaData.getId(), ancestorId);
         long videoLastModified = getVideoLastModified(videoMetaData);
         return Entity.newBuilder(key)
@@ -98,8 +103,9 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.LAST_PROCESSED, Timestamp.now().getSeconds() * 1000)
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, true)
-                .set(VideoEntityProperties.PROCESSED, false)
-                .set(VideoEntityProperties.THUMBNAIL_LINK, videoMetaData.getThumbnailLink())
+                .set(VideoEntityProperties.PROCESSED, processed)
+                .set(VideoEntityProperties.VIDEO_SIZE, videoMetaData.getVideoSize())
+                .set(VideoEntityProperties.NUM_KEYFRAMES, numKeyFrames)
                 .build();
     }
 
@@ -129,7 +135,8 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, value)
                 .set(VideoEntityProperties.PROCESSED, e.getBoolean(VideoEntityProperties.PROCESSED))
-                .set(VideoEntityProperties.THUMBNAIL_LINK, e.getString(VideoEntityProperties.THUMBNAIL_LINK))
+                .set(VideoEntityProperties.VIDEO_SIZE, e.getLong(VideoEntityProperties.VIDEO_SIZE))
+                .set(VideoEntityProperties.NUM_KEYFRAMES, e.getLong(VideoEntityProperties.NUM_KEYFRAMES))
                 .build();
         datastore.put(task);
     }

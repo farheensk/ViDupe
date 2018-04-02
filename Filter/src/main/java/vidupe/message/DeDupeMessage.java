@@ -10,6 +10,7 @@ import lombok.Data;
 public class DeDupeMessage {
     private String jobId;
     private String email;
+    private int totalVideos;
 
     public byte[] toBytes() {
         ObjectMapper objectMapper = new ObjectMapper();

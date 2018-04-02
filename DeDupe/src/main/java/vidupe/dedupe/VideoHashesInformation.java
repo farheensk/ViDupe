@@ -14,6 +14,6 @@ public class VideoHashesInformation {
     String videoName;
     long duration;
     List<List<String>> hashes;
-    String thumbnailLink;
+    long numberOfKeyFrames;
 
 }

@@ -35,7 +35,7 @@ public class VidupeStoreManagerTest {
         String id = getKey();
 
         VideoMetaData videoMetaData = VideoMetaData.builder().videoSize(100L).duration(10L).height(100L)
-                .width(100L).id(id).description("crap").name("test-name").dateModified(DateTime.parseRfc3339("2018-02-25T00:00:01Z")).thumbnailLink("link").build();
+                .width(100L).id(id).description("crap").name("test-name").dateModified(DateTime.parseRfc3339("2018-02-25T00:00:01Z")).build();
         assertNotNull(vidupeStoreManager.createEntity(videoMetaData, CLIENT_ID));
         vidupeStoreManager.deleteEntity(id, CLIENT_ID);
     }
@@ -54,7 +54,7 @@ public class VidupeStoreManagerTest {
 
     private VideoMetaData createVideoMetaData(String id, Date date) {
         return VideoMetaData.builder().videoSize(100L).duration(10L).height(100L).dateModified(new DateTime(date))
-                .width(100L).id(id).description("crap").name("test-name").thumbnailLink("link").build();
+                .width(100L).id(id).description("crap").name("test-name").build();
     }
 
    /* @Test
@@ -118,9 +118,11 @@ public class VidupeStoreManagerTest {
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, 12342)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, ifExists)
                 .set(VideoEntityProperties.PROCESSED, false)
-                .set(VideoEntityProperties.THUMBNAIL_LINK, videoMetaData.getThumbnailLink())
+                .set(VideoEntityProperties.VIDEO_SIZE, videoMetaData.getVideoSize())
+                .set(VideoEntityProperties.NUM_KEYFRAMES, 0)
                 .build();
     }
+
     public Key createKey(String keyName, String ancestorId) {
         Key key = datastore.newKeyFactory()
                 .setKind("videos")

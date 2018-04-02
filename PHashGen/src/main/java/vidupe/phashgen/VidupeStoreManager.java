@@ -39,18 +39,20 @@ public class VidupeStoreManager {
         return e;
     }
 
-    public void resetEntityProperty(Entity e) {
+    public void resetEntityProperty(Entity e, HashGenMessage message, int keyFramesSize) {
         logger.info("Marking entity processed, key=" + e.getKey());
-        Entity task = Entity.newBuilder(e.getKey())
+        Key key = createKey(message.getVideoId(), message.getEmail());
+        Entity task = Entity.newBuilder(key)
                 .set(EntityProperties.VIDEO_NAME, e.getString(EntityProperties.VIDEO_NAME))
                 .set(EntityProperties.DURATION, e.getLong(EntityProperties.DURATION))
                 .set(EntityProperties.LAST_PROCESSED, e.getLong(EntityProperties.LAST_PROCESSED))
                 .set(EntityProperties.VIDEO_LAST_MODIFIED, e.getLong(EntityProperties.VIDEO_LAST_MODIFIED))
                 .set(EntityProperties.EXISTS_IN_DRIVE, e.getBoolean(EntityProperties.EXISTS_IN_DRIVE))
                 .set(EntityProperties.PROCESSED, true)
-                .set(EntityProperties.THUMBNAIL_LINK, e.getString(EntityProperties.THUMBNAIL_LINK))
+                .set(EntityProperties.VIDEO_SIZE, e.getLong(EntityProperties.VIDEO_SIZE))
+                .set(EntityProperties.NUM_KEYFRAMES, keyFramesSize)
                 .build();
-        final Entity modifiedEntity = datastore.put(task);
+        Entity modifiedEntity = datastore.put(task);
         logger.info("Entity marked as processed, key=" + e.getKey());
         logger.debug("Modified Entity = " + printEntity(modifiedEntity));
     }
@@ -73,41 +75,57 @@ public class VidupeStoreManager {
         return key;
     }
 
-    public boolean writeInDataStore(ArrayList<Long> hashes, HashGenMessage message) {
+    public boolean writeInDataStore(ArrayList<Long> hashes, byte[] audioHashes, HashGenMessage message) {
         writeHashesInDataStore(hashes, message);
-        final String videoId = message.getVideoId();
-        final String email = message.getEmail();
+        writeAudioHashesInDataStore(audioHashes, message);
+        String videoId = message.getVideoId();
+        String email = message.getEmail();
         Entity entity = findByKey(videoId, email);
         if(entity == null) {
             throw new RuntimeException("Failed to fetch entity with videoId=" + videoId + ", email=" + email);
         }
-        resetEntityProperty(entity);
+        resetEntityProperty(entity, message, hashes.size());
         return checkIfAllVideosAreProcessed(message);
     }
 
+    private void writeAudioHashesInDataStore(byte[] audioHashes, HashGenMessage message) {
+        logger.info("Writing Audio hashes to data-store");
+        Blob blob = Blob.copyFrom(audioHashes);
+        blob.getLength();
+        Key key = datastore.newKeyFactory().setKind("audio").addAncestors(PathElement.of(message.getEmail(), message.getVideoId()))
+                .newKey(1);
+        Entity hashEntity = Entity.newBuilder(key).
+                set("value", blob).build();
+        datastore.put(hashEntity);
+        logger.info("Finished writing of audio hashes");
+    }
+
     public boolean checkIfAllVideosAreProcessed(HashGenMessage message) {
-        final String email = message.getEmail();
+        String email = message.getEmail();
         logger.info("Checking if all videos are processed for user=" + email);
 
         boolean canSend=false;
-        Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(email);
-        Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
-                .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
-                .setFilter(StructuredQuery.PropertyFilter.eq(EntityProperties.PROCESSED, false))
-                .build();
-        QueryResults<Key> results = this.datastore.run(query);
-
-
-        if(!results.hasNext()) {
-            canSend = true;
-            logger.info("All videos are processed, user=" + email);
+        for(int i=0; i<3; i++) {
+            Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(email);
+            Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
+                    .setFilter(
+                            StructuredQuery.CompositeFilter.and(
+                                    StructuredQuery.PropertyFilter.hasAncestor(ancestorPath),
+                                    StructuredQuery.PropertyFilter.eq(EntityProperties.PROCESSED, false)))
+                    .build();
+            QueryResults<Key> results = this.datastore.run(query);
+            if(!results.hasNext()) {
+                canSend = true;
+                logger.info("All videos are processed, user=" + email);
+                break;
+            }
         }
         logger.debug("Returning canDedupe=" + canSend);
         return canSend;
     }
 
     public void writeHashesInDataStore(ArrayList<Long> hashes, HashGenMessage message) {
-        logger.info("Writing hashes to data-store");
+        logger.info("Writing Video hashes to data-store");
         int i=1;
         List<Entity> hashesList = new ArrayList<>();
         for(long hash: hashes){
@@ -117,9 +135,13 @@ public class VidupeStoreManager {
             Entity hashEntity = Entity.newBuilder(key).
                     set("value", hash).build();
             hashesList.add(hashEntity);
+            if(i%500 == 0){
+                datastore.put(Iterators.toArray(hashesList.iterator(), Entity.class));
+                hashesList = new ArrayList<>();
+            }
         }
         datastore.put(Iterators.toArray(hashesList.iterator(), Entity.class));
-        logger.info("Completed writing of hashes");
+        logger.info("Completed writing video hashes");
     }
 
 

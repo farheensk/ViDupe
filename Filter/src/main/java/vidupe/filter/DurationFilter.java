@@ -12,7 +12,7 @@ public class DurationFilter
         int visit[] = new int[files.size()];
 
         for(int i=0;i<(files.size()-1);i++){
-            final long longVideo = files.get(i).getDuration();
+            long longVideo = files.get(i).getDuration();
             if((longVideo - files.get(i+1).getDuration())<= longVideo*0.1){
                 visit[i] = 1;
                 visit[i+1]=1;

@@ -7,7 +7,6 @@ import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.model.FileList;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
@@ -23,6 +22,7 @@ import java.util.List;
 
 public class VideoProcessor {
     private static final Logger logger = LoggerFactory.getLogger(VideoProcessor.class);
+    static Runtime runtime = Runtime.getRuntime();
 
     public Drive getDrive(HashGenMessage message) {
         String accessToken = message.getAccessToken();
@@ -32,13 +32,12 @@ public class VideoProcessor {
         return drive;
     }
 
-    public ArrayList<String> processVideo(HashGenMessage message, Drive drive) {
-        ArrayList<String> videoHashes = null;
+    public VideoAudioHashes processVideo(HashGenMessage message, Drive drive) {
+        VideoAudioHashes videoAudioHashes = null;
+
         try {
-            FileList result = drive.files().list().setFields(
-                    "files(capabilities/canDownload,id,md5Checksum,mimeType,name,size,videoMediaMetadata,webContentLink)")
-                    .execute();
-            final String pathname = String.valueOf(System.currentTimeMillis());
+            ArrayList<String> videoHashes = null;
+            String pathname = String.valueOf(System.currentTimeMillis());
             java.io.File dir = new java.io.File(pathname);
             createDirectory(dir);
             URL url = new URL("https://www.googleapis.com/drive/v3/files/" + message.getVideoId() + "?alt=media");
@@ -46,45 +45,46 @@ public class VideoProcessor {
             httpRequestGet.getHeaders().setRange("bytes=" + 0 + "-");
             logger.debug(httpRequestGet.getHeaders().toString());
             String videoFileName = "video";
-            final String videoPath = pathname + "/" + videoFileName;
-            //String pathname = "vidupe";
-            final File downloadedVideoFile = new File(videoPath);
+            String videoPath = pathname + "/" + videoFileName;
+            File downloadedVideoFile = new File(videoPath);
             OutputStream outputStream = new FileOutputStream(
                     downloadedVideoFile);
             HttpResponse resp;
             try {
                 resp = httpRequestGet.execute();
                 resp.download(outputStream);
-                logger.info("StatusCode=" + resp.getStatusCode()+", Status="+resp.getStatusMessage());
+                logger.info("StatusCode=" + resp.getStatusCode() + ", Status=" + resp.getStatusMessage());
             } finally {
                 outputStream.close();
             }
-
-            String keyFramesPath = pathname +"/"+"keyFrames";
+            String keyFramesPath = pathname + "/" + "keyFrames";
             File keyFramesDirectory = new File(keyFramesPath);
-            keyFramesDirectory.mkdir();
-
+            createDirectory(keyFramesDirectory);
             extractKeyFrames(pathname + "/", keyFramesPath, downloadedVideoFile);
             videoHashes = generateHashes(keyFramesPath);
-            deleteFile(pathname+"/", videoFileName);
+            AudioProcessor audioProcessor = new AudioProcessor(pathname + "/", downloadedVideoFile);
+            byte[] audioHashes = audioProcessor.processAudio();
+            videoAudioHashes = VideoAudioHashes.builder().videoHashes(videoHashes)
+                    .audioHashes(audioHashes).build();
+            deleteFile(pathname + "/", videoFileName);
+
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return videoHashes;
+        return videoAudioHashes;
     }
 
     private void createDirectory(File dir) {
         boolean success = false;
-        for(int i=0; i<3; i++) {
+        for (int i = 0; i < 3; i++) {
             success = dir.mkdir();
-            if(success) {
+            if (success) {
                 logger.info("Created directory " + dir.getName());
                 break;
             }
         }
-
-        if(!success) {
-          throw new RuntimeException("Couldn't create directory " + dir.getName());
+        if (!success) {
+            throw new RuntimeException("Couldn't create directory " + dir.getName());
         }
     }
 
@@ -107,7 +107,7 @@ public class VideoProcessor {
 
     public void extractKeyFrames(String pathname, String keyFramesPath, File videoName) {
         String command = "ffmpeg -i " + pathname + videoName.getName() + " -vf select=eq(pict_type\\,PICT_TYPE_I) -vsync vfr " + keyFramesPath + "/%04d.jpg -hide_banner -y";
-        Runtime runtime = Runtime.getRuntime();
+        // Runtime runtime = Runtime.getRuntime();
         try {
             Process p = runtime.exec(command);
             p.waitFor();
@@ -119,9 +119,9 @@ public class VideoProcessor {
 
     public ArrayList<String> generateHashes(String pathname) {
         ImagePhash imgphash = new ImagePhash();
-        final Collection<File> collection = FileUtils.listFiles(new File(pathname), new String[]{"jpg", "jpeg"}, true);
+        Collection<File> collection = FileUtils.listFiles(new File(pathname), new String[]{"jpg", "jpeg"}, true);
         ArrayList<String> hashes = new ArrayList<>();
-        final List<File> list = new ArrayList<>(collection);
+        List<File> list = new ArrayList<>(collection);
         list.sort(new Comparator<File>() {
             @Override
             public int compare(File file1, File file2) {
@@ -132,7 +132,7 @@ public class VideoProcessor {
                 return fileNameInt1 - fileNameInt2;
             }
         });
-        logger.info("num_key_frames="+list.size());
+        logger.info("num_key_frames=" + list.size());
         int size = list.size();
         int i = 0;
         for (File file : list) {
@@ -140,16 +140,16 @@ public class VideoProcessor {
                 String imageHash = imgphash.getHash(new FileInputStream(file));
                 hashes.add(imageHash);
                 i++;
-             } catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            if(i==size){
+            if (i == size) {
                 deleteDirectory(pathname);
             }
         }
         return hashes;
     }
-
 }
+
 

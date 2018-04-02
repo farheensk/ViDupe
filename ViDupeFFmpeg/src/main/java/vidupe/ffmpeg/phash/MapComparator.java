@@ -1,4 +1,4 @@
-package vidupe.dedupe;
+package vidupe.ffmpeg.phash;
 
 import java.util.Comparator;
 
@@ -17,17 +17,17 @@ public class MapComparator implements Comparator<VideoHashesInformation>
         Long firstValue;
         Long secondValue;
         switch (key){
-            case "duration":
-                firstValue = second.getDuration();
-                secondValue = first.getDuration();
+            case "numberOfKeyFrames":
+//                firstValue = second.getDuration();
+//                secondValue = first.getDuration();
                 //returns in descending order
 
-                if(firstValue == secondValue){
-                    if(first.getNumberOfKeyFrames() > second.getNumberOfKeyFrames()){
-                        firstValue = second.getNumberOfKeyFrames();
-                        secondValue= first.getNumberOfKeyFrames();
-                    }
-                }
+//                if(firstValue == secondValue){
+//                    if(first.numberOfKeyFrames > second.numberOfKeyFrames){
+                        firstValue = second.numberOfKeyFrames;
+                        secondValue= first.numberOfKeyFrames;
+//                    }
+//                }
 
                 break;
             default:

@@ -29,7 +29,7 @@ public class VidupeStoreManager {
                 .setFilter(StructuredQuery.PropertyFilter.eq(UserEntityProperties.VIDEOS_PROCESSED, UserEntityProperties.TOTAL_VIDEOS))
                 .build();
         QueryResults<Key> result = this.datastore.run(query);
-        final Key[] keys = Iterators.toArray(result, Key.class);
+        Key[] keys = Iterators.toArray(result, Key.class);
         return keys;
     }
 
@@ -39,7 +39,7 @@ public class VidupeStoreManager {
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
                 .build();
         QueryResults<Key> result = this.datastore.run(query);
-        final Key[] keys = Iterators.toArray(result, Key.class);
+        Key[] keys = Iterators.toArray(result, Key.class);
         return keys;
     }
 
@@ -47,7 +47,7 @@ public class VidupeStoreManager {
 
         List<VideoHashesInformation> videoHashes = new ArrayList<>();
         for(Key videoId: videoIdsOfUser){
-            final Entity[] videoEntities = getVideoHashEntities(clientId, videoId);
+            Entity[] videoEntities = getVideoHashEntities(clientId, videoId);
             List<String> hashes = enityToList(videoEntities);
             Entity e = retrieveVideoEntityInformation(videoId, clientId);
             List<List<String>> hashesAfterIntraComparison = intraComparison(hashes, 19);
@@ -55,7 +55,7 @@ public class VidupeStoreManager {
                     .videoID(videoId.getName())
                     .videoName(e.getString(VideoEntityProperties.VIDEO_NAME))
                     .duration(e.getLong(VideoEntityProperties.DURATION))
-                    .thumbnailLink(e.getString(VideoEntityProperties.THUMBNAIL_LINK))
+                    .numberOfKeyFrames(hashesAfterIntraComparison.size())
                     .hashes(hashesAfterIntraComparison).build();
             videoHashes.add(video1);
         }
@@ -98,7 +98,7 @@ public class VidupeStoreManager {
     }
 
     public List<List<String>> intraComparison(List<String> videoHashesList, int threshold) {
-        final int size = videoHashesList.size();
+        int size = videoHashesList.size();
         ImagePhash imagePhash = new ImagePhash();
         List<List<String>> groupedHashes = new ArrayList<>();
         int[] flag = new int[size];
@@ -157,8 +157,25 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, e.getLong(VideoEntityProperties.VIDEO_LAST_MODIFIED))
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, false)
                 .set(VideoEntityProperties.PROCESSED, e.getBoolean(VideoEntityProperties.PROCESSED))
-                .set(VideoEntityProperties.THUMBNAIL_LINK, e.getString(VideoEntityProperties.THUMBNAIL_LINK))
+                .set(VideoEntityProperties.VIDEO_SIZE, e.getLong(VideoEntityProperties.VIDEO_SIZE))
+                .set(VideoEntityProperties.NUM_KEYFRAMES, e.getLong(VideoEntityProperties.NUM_KEYFRAMES))
                 .build();
         datastore.put(task);
+    }
+
+    public boolean checkIfAllVideosAreProcessed(DeDupeMessage deDupeMessage) {
+        Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(deDupeMessage.getEmail());
+        Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
+                .setFilter(
+                        StructuredQuery.CompositeFilter.and(
+                                StructuredQuery.PropertyFilter.hasAncestor(ancestorPath),
+                                StructuredQuery.PropertyFilter.eq(VideoEntityProperties.EXISTS_IN_DRIVE, true),
+                                StructuredQuery.PropertyFilter.eq(VideoEntityProperties.PROCESSED, true)))
+                .build();
+        QueryResults<Key> result = this.datastore.run(query);
+        Key[] keys = Iterators.toArray(result, Key.class);
+        if(keys.length == deDupeMessage.getTotalVideos())
+            return true;
+        return false;
     }
 }

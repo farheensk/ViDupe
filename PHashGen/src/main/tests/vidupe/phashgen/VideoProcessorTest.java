@@ -4,8 +4,6 @@ import com.google.api.services.drive.Drive;
 import org.junit.Test;
 import vidupe.message.HashGenMessage;
 
-import java.util.ArrayList;
-
 import static junit.framework.TestCase.assertTrue;
 
 public class VideoProcessorTest {
@@ -25,12 +23,12 @@ public class VideoProcessorTest {
     @Test
     public void processVideo() {
         VideoProcessor videoProcessor = new VideoProcessor();
-        String accessToken = "ya29.GluDBYFHYwTrdWMKVYjOzu4-H9mr3RKnq8vV0m9EGj15C_EB6RIfJTT2-y525Xlubq1ljl3Gmg5dAh3_HhgwNGT15HQYJqDwst9cJmMKiWp6q7nOZ4q4s6kXDTDO";
-        HashGenMessage message = HashGenMessage.builder().accessToken(accessToken).videoId("1tQE-4UKaHpySzUFIJjtwGCEJpn9RANdr")
+        String accessToken = "ya29.GluOBb6XTAOOXZthkQyYlWdnJWTo8Eha93GGp6weWiu-wK2gnw7GuSNoM8IRFymnA7QHeB0SDWAOUnmVkY6p6vUrt3jzJREwDb9_C-YXA0iCI5m_q5y0cmByJaW2 ";
+        HashGenMessage message = HashGenMessage.builder().accessToken(accessToken).videoId("1IjBu9EIRppivyrd_b7g8PqnikCBznhPy")
                 .videoName("Copy of video.mp4").email("").build();
         final Drive drive = videoProcessor.getDrive(message);
-        final ArrayList<String> hashes = videoProcessor.processVideo(message, drive);
-        System.out.println(hashes);
-        assertTrue("hashes are null", hashes != null);
+        VideoAudioHashes hashes = videoProcessor.processVideo(message, drive);
+        System.out.println(hashes.getVideoHashes());
+        assertTrue("hashes are null", hashes.getVideoHashes() != null);
     }
 }

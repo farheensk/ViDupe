@@ -7,5 +7,6 @@ public class EntityProperties {
         public static final String VIDEO_LAST_MODIFIED = "video-last-modified";
         public static final String LAST_PROCESSED = "last-processed";
         public static final String PROCESSED = "video-processed";
-        public static final String THUMBNAIL_LINK = "thumbnail-link";
+        public static final String NUM_KEYFRAMES = "number-of-keyframes";
+        public static final String VIDEO_SIZE = "video-size";
     }

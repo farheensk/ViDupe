@@ -80,7 +80,7 @@ public class VidupeStoreManagerTest {
                 .set(EntityProperties.VIDEO_LAST_MODIFIED, 12324)
                 .set(EntityProperties.EXISTS_IN_DRIVE, true)
                 .set(EntityProperties.PROCESSED, processed)
-                .set(EntityProperties.THUMBNAIL_LINK, "link")
+                .set(EntityProperties.NUM_KEYFRAMES, 12)
                 .build();
     }
     private Key createKey(String keyName, String ancestorId) {

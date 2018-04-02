@@ -43,21 +43,24 @@ public class VidupeMessageProcessor implements MessageReceiver {
         try {
             hashGenMessage = mapper.readValue(messageString, HashGenMessage.class);
             VideoProcessor videoProcessor = new VideoProcessor();
-            final Drive drive = videoProcessor.getDrive(hashGenMessage);
-            ArrayList<String> hashes = videoProcessor.processVideo(hashGenMessage,drive);
-            final ArrayList<Long> longHashes = convertStringHashesToLong(hashes);
+            Drive drive = videoProcessor.getDrive(hashGenMessage);
+            VideoAudioHashes videoAudioHashes = videoProcessor.processVideo(hashGenMessage,drive);
 
-            boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, hashGenMessage);
+            ArrayList<Long> longHashes = convertStringHashesToLong(videoAudioHashes.getVideoHashes());
+
+            boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, videoAudioHashes.getAudioHashes(), hashGenMessage);
             if(canSendMessage){
                 DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(hashGenMessage.getJobId())
                         .email(hashGenMessage.getEmail()).build();
                 publishMessage(messageToDeDupe);
             }
+
+            consumer.ack();
         } catch (Exception e) {
             logger.error("Message receive exception: ", e);
+            consumer.nack();
         }
 
-        consumer.ack();
     }
 
     public ArrayList<Long> convertStringHashesToLong(ArrayList<String> hashes) {
@@ -76,7 +79,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
 
         try {
             // Create a publisher instance with default settings bound to the topic
-            final BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
+            BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
             publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).build();
             ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();

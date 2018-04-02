@@ -1,6 +1,14 @@
 package vidupe.frontend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
+import com.google.cloud.datastore.*;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -16,6 +24,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -51,6 +61,20 @@ public class Results extends HttpServlet {
         if (blob != null && blob.exists()) {
             logger.info("Displaying results: jobId:"+jobId+" ,email:  "+email);
             isServletNeedRefresh = false;
+            String accessToken = getAccessTokenOfUser(jobId, email);
+            final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE,
+                    DriveScopes.DRIVE_PHOTOS_READONLY,
+                    DriveScopes.DRIVE_FILE,
+                    DriveScopes.DRIVE_METADATA,
+                    DriveScopes.DRIVE_METADATA_READONLY,
+                    DriveScopes.DRIVE_APPDATA,
+                    DriveScopes.DRIVE_READONLY);
+            GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken).createScoped(SCOPES);
+
+            Drive drive = new Drive.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
+                    .setApplicationName("Duplicate video Detection").build();
+            //   result = drive.files().list().execute();
+
             out.println("<a style='width:400px;margin:auto;padding-top:30px;' href='https://mail.google.com/mail/u/0/?logout&hl=en'>");
             out.println("<button class='loginBtn loginBtn--google' style='float:right;'>Sign Out</button></a>" +
                     "</div><div>");
@@ -66,11 +90,12 @@ public class Results extends HttpServlet {
             DuplicateVideosList duplicateVideosList = mapper.readValue(messageString, DuplicateVideosList.class);
             if (duplicateVideosList.getDuplicateVideosList() != null) {
                 if (duplicateVideosList.getDuplicateVideosList().size() > 0) {
+                    HashMap<String,String> thumbnailsList= getThumbnailUrl(drive);
                     for (List<VideoHashesInformation> duplicateGroup : duplicateVideosList.getDuplicateVideosList()) {
                         out.println("<tr style='max-height: 150px; max-width: 150px'>" +
                                 "<td>Duplicates Set</td>");
                         for (VideoHashesInformation video : duplicateGroup) {
-                            String url = video.getThumbnailLink();
+                            String url = thumbnailsList.get(video.videoID);
                             out.println("<td>");
                             out.println("<img src='" + url + "'style='max-height: 150px; max-width: 150px;'></img></br>" +
                                     "<input type='checkbox' name='video_array' value='" + video.getVideoID() + "'>" + video.getVideoName() + "</input></td>");
@@ -99,5 +124,27 @@ public class Results extends HttpServlet {
         out.println("</div></body>");
         out.println("</html>");
         out.close();
+    }
+
+    public HashMap<String,String> getThumbnailUrl(Drive drive) throws IOException {
+        FileList result = drive.files().list().setFields(
+                "files(capabilities/canDownload,id,md5Checksum,mimeType,thumbnailLink,name,size,videoMediaMetadata,webContentLink)")
+                .execute();
+        List<File> files = result.getFiles();
+        HashMap<String,String> thumbnails = new HashMap<>();
+        for(File f:files){
+            thumbnails.put(f.getId(),f.getThumbnailLink());
+        }
+        return thumbnails;
+    }
+
+    public String getAccessTokenOfUser(String jobId, String email) {
+        Datastore datastore = DatastoreOptions.newBuilder().setNamespace("vidupe").build().getService();
+        Key key = datastore.newKeyFactory()
+                .setKind("tokens")
+                .addAncestors(PathElement.of("user", email))
+                .newKey(jobId);
+        Entity entity = datastore.get(key);
+       return entity.getString("accessToken");
     }
 }
