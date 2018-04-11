@@ -1,17 +1,19 @@
-package vidupe.message;
+package vidupe.frontend;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.HashMap;
+import java.util.List;
+
+
 @Data
 @Builder
-public class DeDupeMessage {
-    private String jobId;
-    private String email;
-    private String videoId;
-
+public class CombinedDuplicatesList {
+    private HashMap<String, String> thumbnails;
+    private List<DuplicateVideosList> duplicateVideosList;
     public byte[] toBytes() {
         ObjectMapper objectMapper = new ObjectMapper();
         byte[] value = null;

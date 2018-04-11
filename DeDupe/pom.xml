@@ -110,7 +110,16 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
+        <dependency>
+            <groupId>com</groupId>
+            <artifactId>musicg</artifactId>
+            <version>1.4.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.25</version>
+        </dependency>
     </dependencies>
     <build>
         <finalName>DeDupe</finalName>

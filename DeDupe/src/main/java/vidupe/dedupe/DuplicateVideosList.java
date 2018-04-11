@@ -10,17 +10,8 @@ import java.util.List;
 @Data
 @Builder
 public class DuplicateVideosList {
-    private List<List<VideoHashesInformation>> duplicateVideosList;
-    public byte[] toBytes() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        byte[] value = null;
-        try {
-            value = objectMapper.writeValueAsBytes(this);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-        return value;
-    }
+    private VideoHashesInformation referenceVideo;
+    private List<VideoHashesInformation> duplicateVideosList;
 
     public String toJsonString() {
         ObjectMapper objectMapper = new ObjectMapper();

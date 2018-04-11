@@ -34,29 +34,41 @@ public class VideoProcessor {
 
     public VideoAudioHashes processVideo(HashGenMessage message, Drive drive) {
         VideoAudioHashes videoAudioHashes = null;
-
         try {
             ArrayList<String> videoHashes = null;
             String pathname = String.valueOf(System.currentTimeMillis());
             java.io.File dir = new java.io.File(pathname);
+            if(dir.exists())
+                while (true){
+                    pathname = String.valueOf(System.currentTimeMillis());
+                    dir = new File(pathname);
+                    if(!(dir.exists())){
+                       // createDirectory(dir);
+                        break;
+                    }
+            }
             createDirectory(dir);
             URL url = new URL("https://www.googleapis.com/drive/v3/files/" + message.getVideoId() + "?alt=media");
             HttpRequest httpRequestGet = drive.getRequestFactory().buildGetRequest(new GenericUrl(url.toString()));
             httpRequestGet.getHeaders().setRange("bytes=" + 0 + "-");
             logger.debug(httpRequestGet.getHeaders().toString());
-            String videoFileName = "video";
+            String extension = FilenameUtils.getExtension(message.getVideoName());
+            String videoFileName = "video"+"."+extension;
             String videoPath = pathname + "/" + videoFileName;
             File downloadedVideoFile = new File(videoPath);
             OutputStream outputStream = new FileOutputStream(
                     downloadedVideoFile);
             HttpResponse resp;
+            int statusCode;
             try {
                 resp = httpRequestGet.execute();
                 resp.download(outputStream);
-                logger.info("StatusCode=" + resp.getStatusCode() + ", Status=" + resp.getStatusMessage());
+
             } finally {
                 outputStream.close();
             }
+            statusCode = resp.getStatusCode();
+            logger.info("StatusCode=" + statusCode + ", Status=" + resp.getStatusMessage());
             String keyFramesPath = pathname + "/" + "keyFrames";
             File keyFramesDirectory = new File(keyFramesPath);
             createDirectory(keyFramesDirectory);
@@ -67,7 +79,7 @@ public class VideoProcessor {
             videoAudioHashes = VideoAudioHashes.builder().videoHashes(videoHashes)
                     .audioHashes(audioHashes).build();
             deleteFile(pathname + "/", videoFileName);
-
+            deleteDirectory(pathname + "/");
         } catch (IOException e) {
             e.printStackTrace();
         }

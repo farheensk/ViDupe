@@ -68,6 +68,8 @@
     <orderEntry type="library" name="Maven: com.google.api.grpc:proto-google-cloud-datastore-v1:0.1.30" level="project" />
     <orderEntry type="library" name="Maven: com.google.cloud.datastore:datastore-v1-proto-client:1.6.0" level="project" />
     <orderEntry type="library" name="Maven: com.google.http-client:google-http-client-protobuf:1.20.0" level="project" />
+    <orderEntry type="library" name="Maven: com:musicg:1.4.2.0" level="project" />
+    <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.7.25" level="project" />
     <orderEntry type="library" name="Maven: commons-io:commons-io:20030203.000550" level="project" />
     <orderEntry type="library" name="Maven: com.google.http-client:google-http-client:1.23.0" level="project" />
     <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpclient:4.0.1" level="project" />

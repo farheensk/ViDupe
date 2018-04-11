@@ -44,39 +44,41 @@ public class VidupeMessageProcessor implements MessageReceiver {
             hashGenMessage = mapper.readValue(messageString, HashGenMessage.class);
             VideoProcessor videoProcessor = new VideoProcessor();
             Drive drive = videoProcessor.getDrive(hashGenMessage);
-            VideoAudioHashes videoAudioHashes = videoProcessor.processVideo(hashGenMessage,drive);
+            VideoAudioHashes videoAudioHashes = videoProcessor.processVideo(hashGenMessage, drive);
 
             ArrayList<Long> longHashes = convertStringHashesToLong(videoAudioHashes.getVideoHashes());
 
             boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, videoAudioHashes.getAudioHashes(), hashGenMessage);
-            if(canSendMessage){
-                DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(hashGenMessage.getJobId())
-                        .email(hashGenMessage.getEmail()).build();
-                publishMessage(messageToDeDupe);
+            if (canSendMessage) {
+                boolean doneHashgenProcess = true;
+                ArrayList<String> videoIdsOfUser = vidupeStoreManager.getAllVideoIdsOfUser(hashGenMessage.getEmail());
+                for(String videoId:videoIdsOfUser){
+                    DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(hashGenMessage.getJobId())
+                            .email(hashGenMessage.getEmail()).videoId(videoId).build();
+                    publishMessage(messageToDeDupe);
+                }
+                vidupeStoreManager.resetUserEntityProperty(hashGenMessage, doneHashgenProcess);
             }
-
             consumer.ack();
         } catch (Exception e) {
             logger.error("Message receive exception: ", e);
             consumer.nack();
         }
-
     }
 
     public ArrayList<Long> convertStringHashesToLong(ArrayList<String> hashes) {
         ArrayList<Long> longHashes = new ArrayList<>();
-        for(String hash: hashes){
+        for (String hash : hashes) {
             long longHash = parseLong(hash, 2);
             longHashes.add(longHash);
         }
         return longHashes;
     }
 
-    private void publishMessage(DeDupeMessage deDupeMessage) throws Exception{
+    private void publishMessage(DeDupeMessage deDupeMessage) throws Exception {
         TopicName topicName = TopicName.of(Constants.PROJECT, Constants.PHASHGEN_TOPIC);
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
-
         try {
             // Create a publisher instance with default settings bound to the topic
             BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
@@ -86,18 +88,15 @@ public class VidupeMessageProcessor implements MessageReceiver {
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
             messageIdFutures.add(messageIdFuture);
 
-        }
-        catch(Exception e) {
+        } catch (Exception e) {
             logger.error("An exception occurred when publishing message", e);
-        }
-        finally {
+        } finally {
             // wait on any pending publish requests.
             List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
 
             for (String messageId : messageIds) {
-                logger.info("Published message. messageId=" + messageId+", jobId="+deDupeMessage.getJobId());
+                logger.info("Published message. messageId=" + messageId + ", jobId=" + deDupeMessage.getJobId());
             }
-
         }
     }
 

@@ -1,20 +1,17 @@
 package vidupe.dedupe;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutures;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
-import com.google.cloud.pubsub.v1.Publisher;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
-import com.google.pubsub.v1.TopicName;
-import vidupe.constants.Constants;
+import com.musicg.fingerprint.FingerprintSimilarity;
+import com.musicg.fingerprint.FingerprintSimilarityComputer;
 import vidupe.message.DeDupeMessage;
 
 import java.io.UnsupportedEncodingException;
@@ -23,10 +20,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.http.protocol.HTTP.UTF_8;
+import static vidupe.constants.Constants.*;
 
 public class VidupeMessageProcessor implements MessageReceiver {
 
     private VidupeStoreManager vidupeStoreManager;
+    //  final static int THRESHOLD = 21;
+
 
     public VidupeMessageProcessor(VidupeStoreManager vidupeStoreManager) {
         this.vidupeStoreManager = vidupeStoreManager;
@@ -44,26 +44,29 @@ public class VidupeMessageProcessor implements MessageReceiver {
         DeDupeMessage deDupeMessage;
         try {
             deDupeMessage = mapper.readValue(messageString, DeDupeMessage.class);
-            List<VideoHashesInformation> videoHashesFromStore = retrieveVideoHashes(deDupeMessage);
-            DurationFilter filter= new DurationFilter();
-            filter.filterOutDurations(videoHashesFromStore);
-            List<List<VideoHashesInformation>> duplicates = groupDuplicateVideoFiles(videoHashesFromStore);
+            List<VideoHashesInformation> videoAudioHashes = retrieveHashes(deDupeMessage);
+            Key videoId = vidupeStoreManager.createKey(deDupeMessage.getVideoId(), deDupeMessage.getEmail());
+            VideoHashesInformation referenceVideo = vidupeStoreManager.getSingleVideoAudioHashes(deDupeMessage.getEmail(), videoId);
+            DurationFilter filter = new DurationFilter();
+            filter.filterOutDurations(videoAudioHashes);
+            List<VideoHashesInformation> duplicates = groupDuplicateVideoFiles(videoAudioHashes, referenceVideo);
             DuplicateVideosList duplicateVideosList = DuplicateVideosList.builder()
-                    .duplicateVideosList(duplicates).build();
+                    .referenceVideo(referenceVideo).duplicateVideosList(duplicates).build();
             writeResultsToDataStore(deDupeMessage, duplicateVideosList);
-            System.out.println(duplicates);
-            for(int i=0;i<duplicates.size();i++){
-                for (int j=0;j<duplicates.get(i).size();j++){
-                    System.out.print(duplicates.get(i).get(j).videoID+"   , ");
-                }
-                System.out.println("\n ================ ");
+            vidupeStoreManager.resetVideoEntityDeDupeProperty(deDupeMessage);
+            for (int i = 0; i < duplicates.size(); i++) {
+                System.out.print(duplicates.get(i).videoID + "   , ");
             }
+            System.out.println("\n ================ ");
 
-            vidupeStoreManager.changeExitsInDrivePropertyOfUser(deDupeMessage);
+            boolean ifProcessed = vidupeStoreManager.checkIfAllVideosAreProcessed(deDupeMessage);
+            if(ifProcessed){
+                vidupeStoreManager.changeExitsInDrivePropertyOfVideo(deDupeMessage);
+                vidupeStoreManager.resetUserEntityProperty(deDupeMessage, true);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         consumer.ack();
     }
 
@@ -72,7 +75,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
         ByteString data = ByteString.copyFromUtf8(dataToFile);
         Storage storage = StorageOptions.getDefaultInstance().getService();
         Bucket bucket = storage.get("vidupe");
-        Blob blob = bucket.create(deDupeMessage.getEmail()+"/"+deDupeMessage.getJobId(), dataToFile.getBytes(UTF_8), "application/json");
+        Blob blob = bucket.create(deDupeMessage.getEmail() + "/" + deDupeMessage.getJobId() + "/" + deDupeMessage.getVideoId(), dataToFile.getBytes(UTF_8), "application/json");
     }
 
     public ArrayList<Long> convertStringHashesToLong(ArrayList<String> hashes) {
@@ -84,71 +87,36 @@ public class VidupeMessageProcessor implements MessageReceiver {
         return longHashes;
     }
 
-    private void publishMessage(DeDupeMessage deDupeMessage) throws Exception {
-        TopicName topicName = TopicName.of(Constants.PROJECT, Constants.PHASHGEN_TOPIC);
-        Publisher publisher = null;
-        List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
-
-        try {
-            // Create a publisher instance with default settings bound to the topic
-            publisher = Publisher.newBuilder(topicName).build();
-            ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
-            PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
-            ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
-            messageIdFutures.add(messageIdFuture);
-
-        } finally {
-            // wait on any pending publish requests.
-            List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
-
-            for (String messageId : messageIds) {
-                System.out.println("published with message ID: " + messageId);
-            }
-
-        }
-    }
-
-    List<VideoHashesInformation> retrieveVideoHashes(DeDupeMessage deDupeMessage) {
+    List<VideoHashesInformation> retrieveHashes(DeDupeMessage deDupeMessage) {
         Key[] videoIdsOfUser = vidupeStoreManager.getVideoIdsOfUser(deDupeMessage.getEmail());
-        List<VideoHashesInformation> videoHashesFromStore = vidupeStoreManager.getVideoHashesFromStore(videoIdsOfUser, deDupeMessage.getEmail());
-        return videoHashesFromStore;
+        List<VideoHashesInformation> videoAudioHashesFromStore = vidupeStoreManager.getVideoAudioHashesFromStore(videoIdsOfUser, deDupeMessage.getEmail());
+        return videoAudioHashesFromStore;
     }
 
-    private List<List<VideoHashesInformation>> groupDuplicateVideoFiles(List<VideoHashesInformation> videoHashesFromStore) {
+    private List<VideoHashesInformation> groupDuplicateVideoFiles(List<VideoHashesInformation> videoHashesFromStore, VideoHashesInformation referenceVideo) {
         int size = videoHashesFromStore.size();
-        List<List<VideoHashesInformation>> duplicatesList = new ArrayList<>();
+        List<VideoHashesInformation> duplicatesList = new ArrayList<>();
+        long referenceVideoDuration = referenceVideo.getDuration();
         int[] flag = new int[size];
-        long smallDuration;
-        for(int i = 0; i < size; i++){
-            List<VideoHashesInformation> video1Duplicates = new ArrayList<>();
-            if(flag[i] == 0){
-                flag[i] =1;
-                VideoHashesInformation video1 = videoHashesFromStore.get(i);
-                video1Duplicates.add(video1);
-                smallDuration = video1.getDuration();
-                for(int j = i + 1; j < size; j++){
-                    VideoHashesInformation video2 = videoHashesFromStore.get(j);
-                //    if((smallDuration - video2.getDuration())<=(smallDuration*0.1)){
-
-//                        smallDuration = (smallDuration<video2.duration)?smallDuration:video2.duration;
-                        double distance = distanceBetweenVideos(video1, video2);
-                        System.out.println(distance);
-                        if(distance>=0.4){
-                            if(smallDuration>video2.getDuration()){
-                                video1 = videoHashesFromStore.get(j);
-                                smallDuration = video1.getDuration();
-                            }
-                            flag[j] = 1;
-                            video1Duplicates.add(video2);
-                        }
-
-                    //}
+        for (VideoHashesInformation video : videoHashesFromStore) {
+            if (!(referenceVideo.getVideoID().equals(video.getVideoID()))) {
+                if (Math.abs(referenceVideoDuration - video.getDuration()) <= referenceVideoDuration * 0.01) {
+                    double distance = distanceBetweenVideos(referenceVideo, video);
+                    float similarity = compareAudioHashes(referenceVideo.getAudioHashes(), video.getAudioHashes());
+                    System.out.println(referenceVideo.getVideoName() + " " + video.getVideoName() + " Video Similarity: " + distance);
+                    System.out.println(referenceVideo.getVideoName() + " " + video.getVideoName() + ", Audio similarity: " + similarity);
+                    if (distance >= VIDEO_SIMILARITY && similarity >= AUDIO_SIMILARITY) {
+                        duplicatesList.add(video);
+                    }
                 }
-                if(video1Duplicates.size()>1)
-                    duplicatesList.add(video1Duplicates);
             }
         }
         return duplicatesList;
+    }
+
+    public float compareAudioHashes(byte[] audio1, byte[] audio2) {
+        FingerprintSimilarity fingerprintSimilarity = new FingerprintSimilarityComputer(audio1, audio2).getFingerprintsSimilarity();
+        return fingerprintSimilarity.getSimilarity();
     }
 
     public double distanceBetweenVideos(VideoHashesInformation video1, VideoHashesInformation video2) {
@@ -156,6 +124,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
         int N1 = hashesList1.size();
         List<List<String>> hashesList2 = video2.getHashes();
         int N2 = hashesList2.size();
+        //int den = N1;
         int den = (N1 >= N2) ? N1 : N2;
         int C[][] = new int[N1 + 1][N2 + 1];
         for (int i = 1; i < N1 + 1; i++) {
@@ -163,7 +132,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
             for (int j = 1; j < N2 + 1; j++) {
                 List<String> list2 = hashesList2.get(j - 1);
                 int distance = computeDistance(list1, list2);
-                if (distance <= 19)
+                if (distance <= THRESHOLD)
                     C[i][j] = C[i - 1][j - 1] + 1;
                 else
                     C[i][j] = ((C[i - 1][j] >= C[i][j - 1])) ? C[i - 1][j] : C[i][j - 1];
@@ -174,11 +143,11 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     public int computeDistance(List<String> list1, List<String> list2) {
-        ImagePhash imagePhash = new ImagePhash();
+        ComputeHammingDistance computeHammingDistance = new ComputeHammingDistance();
         int small = 64;
         for (String hash1 : list1) {
             for (String hash2 : list2) {
-                int distance = imagePhash.hammingDistance(hash1, hash2);
+                int distance = computeHammingDistance.hammingDistance(hash1, hash2);
                 if (distance < small)
                     small = distance;
             }

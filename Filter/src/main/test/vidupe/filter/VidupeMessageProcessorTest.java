@@ -8,6 +8,7 @@ import org.junit.Test;
 import vidupe.filter.constants.Constants;
 import vidupe.message.FilterMessage;
 
+import java.io.UnsupportedEncodingException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -30,30 +31,31 @@ public class VidupeMessageProcessorTest {
     }
 
     @Test
-    public void shouldSendToHashGen() {
+    public void shouldSendToHashGen() throws UnsupportedEncodingException {
         vidupeStoreManager = new VidupeStoreManager(this.datastore);
         VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
         String id = getKey();
         DateTime dateModified = DateTime.parseRfc3339("2018-02-23T00:00:00Z");
         DateTime nextDateModified = DateTime.parseRfc3339("2018-02-23T10:00:00Z");
         VideoMetaData videoMetaData = createVideoMetaData(id, dateModified);
-        assertTrue(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+        FilterMessage filterMessage = FilterMessage.builder().clientId(CLIENT_ID).build();
+        assertTrue(vidupeMessageProcessor.sendToHashGen(filterMessage, CLIENT_ID, videoMetaData));
         videoMetaData = createVideoMetaData(id, nextDateModified);
-        assertTrue(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+        assertTrue(vidupeMessageProcessor.sendToHashGen(filterMessage, CLIENT_ID, videoMetaData));
         videoMetaData = createVideoMetaData(id, dateModified);
-        assertFalse(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+        assertFalse(vidupeMessageProcessor.sendToHashGen(filterMessage, CLIENT_ID, videoMetaData));
     }
 
     @Test
-    public void shouldNotSendToHashGen() {
+    public void shouldNotSendToHashGen() throws UnsupportedEncodingException {
         vidupeStoreManager = new VidupeStoreManager(this.datastore);
         VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
         String id = getKey();
         DateTime dateModified = DateTime.parseRfc3339("2018-02-23T00:00:00Z");
-
         VideoMetaData videoMetaData = createVideoMetaData(id, dateModified);
+        FilterMessage filterMessage = FilterMessage.builder().clientId(CLIENT_ID).build();
         vidupeStoreManager.createEntity(videoMetaData, CLIENT_ID);
-        assertFalse(vidupeMessageProcessor.sendToHashGen(CLIENT_ID, videoMetaData));
+        assertFalse(vidupeMessageProcessor.sendToHashGen(filterMessage, CLIENT_ID, videoMetaData));
     }
 
 
@@ -81,12 +83,13 @@ public class VidupeMessageProcessorTest {
 
 
     @Test
-    public void filter() {
+    public void getVideosList() {
         Datastore datastore = DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService();
         VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(datastore);
         VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
         FilterMessage filterMessage = FilterMessage.builder().accessToken("ya29.GluIBbOPssVV7tOuc2x95tibiAIItzlYlpRY215Tlf4olr31ETWNqTWHRyG_G5k4IV7IiOpzYbZUO2iiQa7KRkMgJSkhXIDNC1iitzmbv7HwR6Vms2CwF5lDH-VC").build();
-        vidupeMessageProcessor.filter(filterMessage);
-
+        List<VideoMetaData> videosList = vidupeMessageProcessor.getVideosList(filterMessage);
+        DurationFilter durationFilter = new DurationFilter();
+        durationFilter.filterOutDurations(videosList);
     }
 }

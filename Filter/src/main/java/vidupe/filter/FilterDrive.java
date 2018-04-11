@@ -23,7 +23,6 @@ public class FilterDrive extends HttpServlet {
 
     public void doGet(HttpServletRequest request, HttpServletResponse response) {
         try {
-
             StringBuilder list = receiveMessages();
             response.getWriter().print(list);
         } catch (Exception e) {
@@ -35,23 +34,19 @@ public class FilterDrive extends HttpServlet {
         SubscriptionName subscription = SubscriptionName.of(Constants.PROJECT, Constants.SUBSCRIPTION);
         VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService());
         MessageReceiver receiver = new VidupeMessageProcessor(vidupeStoreManager);
-
         Subscriber subscriber = Subscriber.newBuilder(subscription, receiver).build();
         subscriber.addListener(
                 new Subscriber.Listener() {
                     @Override
                     public void failed(Subscriber.State from, Throwable failure) {
                         // Handle failure. This is called when the Subscriber encountered a fatal error and is shutting down.
-                       logger.debug("Subscriber encountered a fatal error:",failure);
+                        logger.debug("Subscriber encountered a fatal error:", failure);
                     }
                 },
                 MoreExecutors.directExecutor());
         subscriber.startAsync().awaitRunning();
         StringBuilder display = new StringBuilder("default");
         return display;
-
     }
-
-
 }
 

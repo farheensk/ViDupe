@@ -145,7 +145,7 @@ public class ImagePhash {
 
 		double[][] dctVals = applyDCT(vals);
 
-		logger.debug("DCT start");
+		//logger.debug("DCT start");
 
 		/* 4. Reduce the DCT.
 

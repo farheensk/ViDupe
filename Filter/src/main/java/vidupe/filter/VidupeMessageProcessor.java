@@ -7,6 +7,7 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.DateTime;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.gax.batching.BatchingSettings;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
@@ -42,7 +43,6 @@ public class VidupeMessageProcessor implements MessageReceiver {
     private VidupeStoreManager vidupeStoreManager;
     private static final Logger logger = LoggerFactory.getLogger(VidupeMessageProcessor.class);
 
-
     public VidupeMessageProcessor(VidupeStoreManager vidupeStoreManager) {
         this.vidupeStoreManager = vidupeStoreManager;
     }
@@ -66,126 +66,145 @@ public class VidupeMessageProcessor implements MessageReceiver {
         FilterMessage filterMessage;
         try {
             filterMessage = mapper.readValue(messageString, FilterMessage.class);
-            List<VideoMetaData> listFiles = filter(filterMessage);
+            List<VideoMetaData> metaDataList = getVideosList(filterMessage);
+            DurationFilter durationFilter = new DurationFilter();
+            List<VideoMetaData> listFiles = durationFilter.filterOutDurations(metaDataList);
             String jobId = filterMessage.getJobId();
             String clientId = filterMessage.getEmail();
             int messageCount = 0;
             for (VideoMetaData videoMetaData : listFiles) {
-                boolean proceedToHashGen = sendToHashGen(clientId, videoMetaData);
+                boolean proceedToHashGen = sendToHashGen(filterMessage, clientId, videoMetaData);
                 if (proceedToHashGen) {
                     HashGenMessage hashGenMessage = HashGenMessage.builder().accessToken(filterMessage.getAccessToken())
-                            .jobId(filterMessage.getJobId())
+                            .jobId(jobId)
                             .email(clientId)
                             .videoDuration(videoMetaData.getDuration())
                             .videoId(videoMetaData.getId())
                             .videoName(videoMetaData.getName())
                             .videoSize(videoMetaData.getVideoSize())
                             .build();
-                        publishMessage(hashGenMessage);
-                        messageCount++;
+                    publishMessage(hashGenMessage);
+                    messageCount++;
                 }
             }
-            logger.info("Number of videos to process: "+listFiles.size()+" , message_count "+messageCount);
-            analyzeListFilesAndMessageCount(filterMessage, listFiles, clientId, messageCount);
-            vidupeStoreManager.updatePropertyOfUsers(jobId,clientId, messageCount);
+            logger.info("Number of videos to process: " + listFiles.size() + " , message_count " + messageCount);
             vidupeStoreManager.deleteAllEntitiesIfNotExistsInDrive(clientId);
+            analyzeListFilesAndMessageCount(filterMessage, listFiles, messageCount, metaDataList.size());
             consumer.ack();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
-    private void analyzeListFilesAndMessageCount(FilterMessage filterMessage, List<VideoMetaData> listFiles, String clientId, int messageCount) throws Exception {
-        if(listFiles.size()>=2 && messageCount == 0){
-            DeDupeMessage deDupeMessage = DeDupeMessage.builder().email(clientId).jobId(filterMessage.getJobId()).totalVideos(messageCount).build();
-            publishMessageToDeDupe(deDupeMessage);
+    private void analyzeListFilesAndMessageCount(FilterMessage filterMessage, List<VideoMetaData> listFiles, int messageCount, int totalVideos) throws Exception {
+        if(messageCount>0){
+            updateUserStatus(filterMessage, messageCount, totalVideos, false, false);
         }
-        if(listFiles.size()==0 && messageCount == 0){
-            writeResultsToDataStore(filterMessage, "{}");
+        if(messageCount == 0){
+            if (listFiles.size() >= 2) {
+                updateUserStatus(filterMessage, messageCount, totalVideos, true, false);
+                ArrayList<String> videoIdsOfUser = vidupeStoreManager.getAllVideoIdsOfUser(filterMessage.getEmail());
+                for(String videoId:videoIdsOfUser){
+                    DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(filterMessage.getJobId())
+                            .email(filterMessage.getEmail()).videoId(videoId).build();
+                    publishMessageToDeDupe(messageToDeDupe);
+                }
+            }
+            if (listFiles.size() == 0) {
+                String path = filterMessage.getEmail()+"/"+filterMessage.getJobId();
+                writeResultsToDataStore(path, "{}");
+                updateUserStatus(filterMessage, messageCount, totalVideos, true, true);
+            }
         }
     }
-    private void writeResultsToDataStore(FilterMessage filterMessage, String data) throws UnsupportedEncodingException {
+
+    public void updateUserStatus(FilterMessage filterMessage, int messageCount, int totalVideos, boolean ifPhashgenProcessed, boolean ifDedupeProcessed) {
+        UserStatus userStatus = UserStatus.builder()
+                .jobId(filterMessage.getJobId())
+                .email(filterMessage.getEmail())
+                .phashgenProcessed(ifPhashgenProcessed)
+                .dedupeProcessed(ifDedupeProcessed)
+                .totalVideos(totalVideos)
+                .filteredVideos(messageCount)
+                .build();
+        vidupeStoreManager.updatePropertyOfUser(userStatus);
+    }
+
+    private void writeResultsToDataStore(String path, String data) throws UnsupportedEncodingException {
         Storage storage = StorageOptions.getDefaultInstance().getService();
         Bucket bucket = storage.get("vidupe");
-        Blob blob = bucket.create(filterMessage.getEmail()+"/"+filterMessage.getJobId(), data.getBytes(UTF_8), "application/json");
+        Blob blob = bucket.create(path, data.getBytes(UTF_8), "application/json");
     }
 
-    private void publishMessageToDeDupe(DeDupeMessage deDupeMessage) throws Exception{
+    private void publishMessageToDeDupe(DeDupeMessage deDupeMessage) throws Exception {
         TopicName topicName = TopicName.of(Constants.PROJECT, Constants.PHASHGEN_TOPIC);
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
 
         try {
             // Create a publisher instance with default settings bound to the topic
-            publisher = Publisher.newBuilder(topicName).build();
+            BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
+            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).build();
             ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
             messageIdFutures.add(messageIdFuture);
-
-        }  catch(Exception e) {
+        } catch (Exception e) {
             logger.error("An exception occurred when publishing message", e);
-        }
-        finally {
+        } finally {
             // wait on any pending publish requests.
             List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
 
             for (String messageId : messageIds) {
-                logger.info("Published message. messageId=" + messageId+", jobId="+deDupeMessage.getJobId());
+                logger.info("Published message. messageId=" + messageId + ", jobId=" + deDupeMessage.getJobId());
             }
-
         }
     }
 
-    private void publishMessage(HashGenMessage hashGenMessage) throws Exception{
+    private void publishMessage(HashGenMessage hashGenMessage) throws Exception {
         TopicName topicName = TopicName.of(Constants.PROJECT, Constants.FILTER_TOPIC);
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
-
         try {
             // Create a publisher instance with default settings bound to the topic
-            publisher = Publisher.newBuilder(topicName).build();
+            BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
+            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).build();
             ByteString data = ByteString.copyFromUtf8(hashGenMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
             messageIdFutures.add(messageIdFuture);
+
+
+        } catch (Exception e) {
+            logger.error("An exception occurred when publishing message", e);
+        } finally {
+            // wait on any pending publish requests.
+            List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
+            for (String messageId : messageIds) {
+                logger.info("Published message. messageId=" + messageId + ", jobId=" + hashGenMessage.getJobId());
+            }
         }
-         catch(Exception e) {
-                logger.error("An exception occurred when publishing message", e);
-            }
-        finally {
-                // wait on any pending publish requests.
-                List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
-
-                for (String messageId : messageIds) {
-                    logger.info("Published message. messageId=" + messageId+", jobId="+hashGenMessage.getJobId());
-                }
-
-            }
     }
 
-    boolean sendToHashGen(String clientId, VideoMetaData videoMetaData) {
+    boolean sendToHashGen(FilterMessage filterMessage, String clientId, VideoMetaData videoMetaData) throws UnsupportedEncodingException {
         boolean proceedToHashGen = false;
         Entity entity = vidupeStoreManager.findByKey(videoMetaData.getId(), clientId);
-        if(videoMetaData.getVideoSize()>500000000){
-            if(entity == null){
+        if (videoMetaData.getVideoSize() > 500000000) {
+            if (entity == null) {
                 Entity entityCreated = vidupeStoreManager.createEntity(videoMetaData, clientId);
                 proceedToHashGen = false;
-            }
-            else
-            {
+            } else {
                 boolean shouldReplaceEntity = vidupeStoreManager.isModified(entity, videoMetaData);
-                if(shouldReplaceEntity) {
+                if (shouldReplaceEntity) {
                     vidupeStoreManager.putEntity(videoMetaData, clientId);
                     proceedToHashGen = false;
                 } else {
                     vidupeStoreManager.resetEntityProperty(entity, videoMetaData, true);
                 }
             }
-        }
-        else {
+            String path = filterMessage.getEmail()+"/"+filterMessage.getJobId()+"/"+ videoMetaData.getId();
+            writeResultsToDataStore(path, "{}");
+        } else {
             if (entity == null) {
                 Entity entityCreated = vidupeStoreManager.createEntity(videoMetaData, clientId);
                 proceedToHashGen = (entityCreated != null);
@@ -202,9 +221,9 @@ public class VidupeMessageProcessor implements MessageReceiver {
         return proceedToHashGen;
     }
 
-    public List<VideoMetaData> filter(FilterMessage filterMessage) {
+    public List<VideoMetaData> getVideosList(FilterMessage filterMessage) {
         final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE);
-        List<VideoMetaData> filteredMetaData = null;
+        List<VideoMetaData> videoMetaDataList = new ArrayList<>();
         try {
             String accessToken = filterMessage.getAccessToken();
             GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken).createScoped(SCOPES);
@@ -214,20 +233,19 @@ public class VidupeMessageProcessor implements MessageReceiver {
                     "files(capabilities/canDownload,id,md5Checksum,mimeType,name,size,videoMediaMetadata,webContentLink)")
                     .execute();
             List<File> files = result.getFiles();
-            List<VideoMetaData> metaDataList = new ArrayList<>();
+//            List<VideoMetaData> metaDataList = new ArrayList<>();
             for (File file : files) {
                 String type = file.getMimeType();
                 if (Pattern.matches("video/.*", type)) {
                     File.VideoMediaMetadata video_Media_MetaData = file.getVideoMediaMetadata();
-                        metaDataList.add(getMetaData(file.getId(), file.getName(), file.getDescription(), file.getModifiedTime(), file.getSize(),
-                                video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth()));
-                    }
+                    videoMetaDataList.add(getMetaData(file.getId(), file.getName(), file.getDescription(), file.getModifiedTime(), file.getSize(),
+                            video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth()));
+                }
             }
-            DurationFilter filter = new DurationFilter();
-            filteredMetaData = filter.filterOutDurations(metaDataList);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return filteredMetaData;
+        return videoMetaDataList;
     }
 }

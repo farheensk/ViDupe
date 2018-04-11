@@ -11,6 +11,7 @@ public class DeDupeMessage {
     private String jobId;
     private String email;
     private int totalVideos;
+    private String videoId;
 
     public byte[] toBytes() {
         ObjectMapper objectMapper = new ObjectMapper();

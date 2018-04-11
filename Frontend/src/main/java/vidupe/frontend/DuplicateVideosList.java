@@ -10,7 +10,8 @@ import java.util.List;
 @Data
 @Builder
 public class DuplicateVideosList {
-    private List<List<VideoHashesInformation>> duplicateVideosList;
+    private VideoHashesInformation referenceVideo;
+    private List<VideoHashesInformation> duplicateVideosList;
     public byte[] toBytes() {
         ObjectMapper objectMapper = new ObjectMapper();
         byte[] value = null;

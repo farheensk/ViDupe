@@ -22,21 +22,20 @@ public class FfmpegExecutor extends HttpServlet {
         BufferedReader br = null;
         List<String> videoIds = new ArrayList<>();
         try {
-            br = new BufferedReader(new FileReader(directory+"/videoIdsDurations.txt"));
+            br = new BufferedReader(new FileReader(directory + "/videoIdsDurations.txt"));
             String line = null;
             while ((line = br.readLine()) != null) {
-               String subString = line.substring(1,12);
-               videoIds.add(subString);
+                String subString = line.substring(1, 12);
+                videoIds.add(subString);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        for(String videoId:videoIds){
-            download(videoId,directory);
+        for (String videoId : videoIds) {
+            download(videoId, directory);
         }
-
         try {
-           // System.out.println("Cmd:" + command);
+            // System.out.println("Cmd:" + command);
             Process p = runtime.exec(command);
             p.waitFor();
             p = runtime.exec(command2);
@@ -54,43 +53,30 @@ public class FfmpegExecutor extends HttpServlet {
         int numberOfKeyframes1 = 0;
         int numberOfKeyframes2 = 0;
         File[] f = directory1.listFiles();
-        if(f != null && f.length > 0 )
-        for (File file : f) {
-            String fileName = file.getName();
-            boolean isImageFile = file.getName().toLowerCase().endsWith(".jpg");
-            boolean matchesF1 = Pattern.matches("f1.*", fileName);
-            boolean matchesF2 = Pattern.matches("f2.*", fileName);
-            if (isImageFile && matchesF2) {
-                numberOfKeyframes1++;
-                addToList(imgphash, videoHash1, file);
-            } else if(isImageFile && matchesF1){
-                numberOfKeyframes2++;
-                addToList(imgphash, videoHash2, file);
-            }
+        if (f != null && f.length > 0)
+            for (File file : f) {
+                String fileName = file.getName();
+                boolean isImageFile = file.getName().toLowerCase().endsWith(".jpg");
+                boolean matchesF1 = Pattern.matches("f1.*", fileName);
+                boolean matchesF2 = Pattern.matches("f2.*", fileName);
+                if (isImageFile && matchesF2) {
+                    numberOfKeyframes1++;
+                    addToList(imgphash, videoHash1, file);
+                } else if (isImageFile && matchesF1) {
+                    numberOfKeyframes2++;
+                    addToList(imgphash, videoHash2, file);
+                }
 
-        }
-//        int counter = computeHammingDistance(videoHash1,videoHash2);
+            }
         double similarity = 0;
-//        if(numberOfKeyframes1<numberOfKeyframes2)
-//                similarity = ((float)counter/numberOfKeyframes1);
-//        else
-//                similarity = ((float)counter/numberOfKeyframes2);
         similarity = computeHammingDistance2(videoHash1, videoHash2);
         System.out.println(similarity);
-        }
+    }
 
-    private static void download(String videoId,String path) {
-        String command = "youtube-dl --all-formats http://www.youtube.com/watch?v="+videoId+" -o "+path+"/download/%(title)s.%(ext)s";
+    private static void download(String videoId, String path) {
+        String command = "youtube-dl --all-formats http://www.youtube.com/watch?v=" + videoId + " -o " + path + "/download/%(title)s.%(ext)s";
         Runtime runtime = Runtime.getRuntime();
         Process p = null;
-//        YoutubeDLRequest request = new YoutubeDLRequest(videoUrl, directory);
-//
-//        request.setOption("no-mark-watched");
-//        request.setOption("ignore-errors");
-//        request.setOption("no-playlist");
-//        request.setOption("extract-audio");
-//        request.setOption("audio-format \"mp3\"");
-//        request.setOption("output \"a.%(ext)s\"");
         try {
             p = runtime.exec(command);
             p.waitFor();
@@ -101,26 +87,26 @@ public class FfmpegExecutor extends HttpServlet {
     }
 
     private static int computeHammingDistance(ArrayList<String> videoHash1, ArrayList<String> videoHash2) {
-            ImagePhash imagePhash = new ImagePhash();
-            int counter = 0;
+        ImagePhash imagePhash = new ImagePhash();
+        int counter = 0;
         for (int i = 0; i < videoHash1.size(); i++) {
             String videopHash1 = videoHash1.get(i);
             for (int j = 0; j < videoHash2.size(); j++) {
                 String videopHash2 = videoHash2.get(j);
                 int distance = imagePhash.distance(videopHash1, videopHash2);
-                if (distance < 21){
+                if (distance < 21) {
                     System.out.println("[" + i + ", " + j + "] = " + distance);
                     counter++;
                 }
             }
         }
         System.out.println("Returning counter = " + counter);
-            return counter;
+        return counter;
     }
 
     private static void addToList(ImagePhash imgphash, ArrayList<String> videoHashList, File file) {
         try {
-           videoHashList.add(imgphash.getHash(new FileInputStream(file)));
+            videoHashList.add(imgphash.getHash(new FileInputStream(file)));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -143,36 +129,36 @@ public class FfmpegExecutor extends HttpServlet {
         int N1 = videoHash1.size();
         int N2 = videoHash2.size();
         int den = (N1 <= N2) ? N1 : N2;
-        int C[][] = new int[N1+1][N2+1];
+        int C[][] = new int[N1 + 1][N2 + 1];
 
-        for (int i=0;i<N1+1;i++){
+        for (int i = 0; i < N1 + 1; i++) {
             C[i][0] = 0;
         }
-        for (int j=0;j<N2+1;j++){
+        for (int j = 0; j < N2 + 1; j++) {
             C[0][j] = 0;
         }
 
-        for (int i = 1; i < N1+1; i++) {
-            String videopHash1 = videoHash1.get(i-1);
-            for (int j = 1; j < N2+1; j++) {
-                String videopHash2 = videoHash2.get(j-1);
+        for (int i = 1; i < N1 + 1; i++) {
+            String videopHash1 = videoHash1.get(i - 1);
+            for (int j = 1; j < N2 + 1; j++) {
+                String videopHash2 = videoHash2.get(j - 1);
                 int distance = imagePhash.distance(videopHash1, videopHash2);
-                if (distance <= 21){
-                    System.out.println("[" + (i-1) + ", " + (j-1) + "] = " + distance);
-                    C[i][j] = C[i-1][j-1] + 1;
+                if (distance <= 21) {
+                    System.out.println("[" + (i - 1) + ", " + (j - 1) + "] = " + distance);
+                    C[i][j] = C[i - 1][j - 1] + 1;
                 } else {
-                    C[i][j] = ((C[i-1][j] >= C[i][j-1])) ? C[i-1][j] : C[i][j-1];
+                    C[i][j] = ((C[i - 1][j] >= C[i][j - 1])) ? C[i - 1][j] : C[i][j - 1];
                 }
             }
         }
-        double result = (double)(C[N1][N2])/(double)(den);
+        double result = (double) (C[N1][N2]) / (double) (den);
 
         return result;
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        String directory= "/media/farheen/01D26F1D020D3380/sample";
+        String directory = "/media/farheen/01D26F1D020D3380/sample";
 //        String command = "ffmpeg -ss 00:00:15 -i "+ direc+"/720.mp4 -vf scale=800:-1 -vframes 1 "+direc+"/image.jpg";
 //        Process proc = Runtime.getRuntime().exec(command);
 //        ArrayList<Integer> list = new ArrayList<Integer>();
@@ -192,7 +178,7 @@ public class FfmpegExecutor extends HttpServlet {
 
 //        String command = "ffmpeg -y -i "+direc+"/1408_1152.3gp -r 10 -s 160x90 -c:v libx264 -b:v 3M -strict -2 -movflags faststart "+direc+"/destination1.mp4";
 //        Process proc = Runtime.getRuntime().exec(command);
-        String command="ffmpeg -i "+directory+"/destination1.mp4 -vf \"select=eq(pict_type\\,PICT_TYPE_I)\" -vsync vfr "+directory+"/thumb2_%04d.jpg -hide_banner -y";
+        String command = "ffmpeg -i " + directory + "/destination1.mp4 -vf \"select=eq(pict_type\\,PICT_TYPE_I)\" -vsync vfr " + directory + "/thumb2_%04d.jpg -hide_banner -y";
         Process process = Runtime.getRuntime().exec(command);
         try {
             process.waitFor();
@@ -211,7 +197,7 @@ public class FfmpegExecutor extends HttpServlet {
 //            proc = Runtime.getRuntime().exec(command);
         //}
 
-        response.getWriter().print(command+ " "+process.exitValue() );
+        response.getWriter().print(command + " " + process.exitValue());
 
     }
 

@@ -19,13 +19,13 @@ import java.util.Map;
 
 public class PHashGenTest extends TestCase {
 
-   public static void main(String args[]){
-       VideoProcessor pHashGen = new VideoProcessor();
-       pHashGen.extractKeyFrames("/media/farheen/01D26F1D020D3380/sample/","",new File("1920_1080.flv"));
-        pHashGen.deleteFile("/media/farheen/01D26F1D020D3380/sample/","1920_1080.flv");
-   }
+    public static void main(String args[]) {
+        VideoProcessor pHashGen = new VideoProcessor();
+        pHashGen.extractKeyFrames("/media/farheen/01D26F1D020D3380/sample/", "", new File("1920_1080.flv"));
+        pHashGen.deleteFile("/media/farheen/01D26F1D020D3380/sample/", "1920_1080.flv");
+    }
 
-    void publishMessages(Map<String, String> attributes){
+    void publishMessages(Map<String, String> attributes) {
         String hostport = System.getenv("PUBSUB_EMULATOR_HOST");
         ManagedChannel channel = ManagedChannelBuilder.forTarget(hostport).usePlaintext(true).build();
         try {

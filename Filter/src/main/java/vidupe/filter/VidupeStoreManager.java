@@ -9,6 +9,8 @@ import vidupe.filter.constants.Constants;
 import vidupe.filter.constants.UserEntityProperties;
 import vidupe.filter.constants.VideoEntityProperties;
 
+import java.util.ArrayList;
+
 public class VidupeStoreManager {
     private static final Logger logger = LoggerFactory.getLogger(VidupeMessageProcessor.class);
     private final Datastore datastore;
@@ -27,7 +29,6 @@ public class VidupeStoreManager {
                 .build();
         QueryResults<Key> result = this.datastore.run(query);
         Key[] keys = Iterators.toArray(result, Key.class);
-
         deleteHashesRelatedToEntity(keys, ancestorId);
         this.datastore.delete(keys);
     }
@@ -35,12 +36,12 @@ public class VidupeStoreManager {
     public void deleteHashesRelatedToEntity(Key[] result, String ancestorId) {
         Key ancestorPath;
         if (result != null) {
-            for(Key key:result){
+            for (Key key : result) {
                 ancestorPath = datastore.newKeyFactory().setKind(ancestorId).newKey(key.getName());
-                Query<Key> query = Query.newKeyQueryBuilder().setKind("hashes")
+                Query<Key> query = Query.newKeyQueryBuilder().setKind("VideoHashes")
                         .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath)).build();
                 QueryResults<Key> hashesResult = this.datastore.run(query);
-                this.datastore.delete(Iterators.toArray(hashesResult,Key.class));
+                this.datastore.delete(Iterators.toArray(hashesResult, Key.class));
             }
         }
     }
@@ -89,10 +90,12 @@ public class VidupeStoreManager {
     }
 
     private Entity fillEntity(VideoMetaData videoMetaData, String ancestorId) {
-        boolean processed = false;
+        boolean phashgenProcessed = false;
+        boolean dedupeProcessed = false;
         long numKeyFrames = 0;
-        if(videoMetaData.getVideoSize()>500000000){
-            processed = true;
+        if (videoMetaData.getVideoSize() > 500000000) {
+            phashgenProcessed = true;
+            dedupeProcessed = true;
             numKeyFrames = -1;
         }
         Key key = createKey(videoMetaData.getId(), ancestorId);
@@ -103,7 +106,8 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.LAST_PROCESSED, Timestamp.now().getSeconds() * 1000)
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, true)
-                .set(VideoEntityProperties.PROCESSED, processed)
+                .set(VideoEntityProperties.DEDUPE_PROCESS, dedupeProcessed)
+                .set(VideoEntityProperties.PHASHGEN_PROCESSED, phashgenProcessed)
                 .set(VideoEntityProperties.VIDEO_SIZE, videoMetaData.getVideoSize())
                 .set(VideoEntityProperties.NUM_KEYFRAMES, numKeyFrames)
                 .build();
@@ -128,24 +132,46 @@ public class VidupeStoreManager {
 
     public void resetEntityProperty(Entity e, VideoMetaData videoMetaData, boolean value) {
         long videoLastModified = getVideoLastModified(videoMetaData);
+        boolean dedupeProcessed;
+        boolean phashgenProcessed;
+        long numberOfKeyFrames;
+        if (videoMetaData.getVideoSize() > 500000000) {
+            phashgenProcessed = true;
+            dedupeProcessed = true;
+            numberOfKeyFrames = -1;
+        } else {
+            phashgenProcessed = true;
+            dedupeProcessed = false;
+            numberOfKeyFrames = e.getLong(VideoEntityProperties.NUM_KEYFRAMES);
+        }
         Entity task = Entity.newBuilder(e.getKey())
                 .set(VideoEntityProperties.VIDEO_NAME, e.getString(VideoEntityProperties.VIDEO_NAME))
                 .set(VideoEntityProperties.DURATION, e.getLong(VideoEntityProperties.DURATION))
                 .set(VideoEntityProperties.LAST_PROCESSED, e.getLong(VideoEntityProperties.LAST_PROCESSED))
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, value)
-                .set(VideoEntityProperties.PROCESSED, e.getBoolean(VideoEntityProperties.PROCESSED))
+                .set(VideoEntityProperties.DEDUPE_PROCESS, dedupeProcessed)
+                .set(VideoEntityProperties.PHASHGEN_PROCESSED, phashgenProcessed)
                 .set(VideoEntityProperties.VIDEO_SIZE, e.getLong(VideoEntityProperties.VIDEO_SIZE))
-                .set(VideoEntityProperties.NUM_KEYFRAMES, e.getLong(VideoEntityProperties.NUM_KEYFRAMES))
+                .set(VideoEntityProperties.NUM_KEYFRAMES, numberOfKeyFrames)
                 .build();
         datastore.put(task);
     }
 
-    public void updatePropertyOfUsers(String jobId, String clientId, int messageCount) {
+    public void updatePropertyOfUser(UserStatus userStatus) {
         Datastore datastore = DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService();
-        Key key = createUserEntityKey(jobId, clientId);
+        Key key = createUserEntityKey(userStatus.getJobId(), userStatus.getEmail());
         Entity entity = findEntityOfUserTask(datastore, key);
-        resetUserProperty(entity, key, messageCount);
+        for (int i = 0; i < 3; i++) {
+            resetUserProperty(entity, key, userStatus);
+            Entity newEntity = datastore.get(key);
+            if (newEntity.getBoolean(UserEntityProperties.PHASHGEN) == userStatus.isPhashgenProcessed() &&
+                    newEntity.getBoolean(UserEntityProperties.DEDUPE) == userStatus.isDedupeProcessed() &&
+                    newEntity.getLong(UserEntityProperties.FILTERED_VIDEOS_COUNT) == userStatus.getFilteredVideos() &&
+                    newEntity.getLong(UserEntityProperties.TOTAL_VIDEOS) == userStatus.getTotalVideos()) {
+                break;
+            }
+        }
     }
 
     private Key createUserEntityKey(String jobId, String clientId) {
@@ -156,12 +182,15 @@ public class VidupeStoreManager {
         return key;
     }
 
-    public void resetUserProperty(Entity e, Key key, int messageCount) {
+    public void resetUserProperty(Entity e, Key key, UserStatus userStatus) {
         Entity task = Entity.newBuilder(key)
                 .set(UserEntityProperties.USER_ID, e.getString(UserEntityProperties.USER_ID))
                 .set(UserEntityProperties.NAME, e.getString(UserEntityProperties.NAME))
                 .set(UserEntityProperties.EMAIL_ID, e.getString(UserEntityProperties.EMAIL_ID))
-                .set(UserEntityProperties.TOTAL_VIDEOS, messageCount)
+                .set(UserEntityProperties.TOTAL_VIDEOS, userStatus.getTotalVideos())
+                .set(UserEntityProperties.FILTERED_VIDEOS_COUNT, userStatus.getFilteredVideos())
+                .set(UserEntityProperties.PHASHGEN, userStatus.isPhashgenProcessed())
+                .set(UserEntityProperties.DEDUPE, userStatus.isDedupeProcessed())
                 .set(UserEntityProperties.CREATED, e.getTimestamp(UserEntityProperties.CREATED))
                 .set(UserEntityProperties.DONE, e.getBoolean(UserEntityProperties.DONE))
                 .build();
@@ -181,5 +210,23 @@ public class VidupeStoreManager {
                 e = e1;
         }
         return e;
+    }
+
+    public ArrayList<String> getAllVideoIdsOfUser(String email) {
+        ArrayList<String> videoIds = new ArrayList<>();
+        logger.info("Retrieving videos of user=" + email);
+        Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(email);
+        Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
+                .setFilter(
+                        StructuredQuery.CompositeFilter.and(
+                                StructuredQuery.PropertyFilter.hasAncestor(ancestorPath),
+                                StructuredQuery.PropertyFilter.eq(VideoEntityProperties.EXISTS_IN_DRIVE, true)))
+                .build();
+        QueryResults<Key> results = this.datastore.run(query);
+        while (results.hasNext()) {
+            videoIds.add(results.next().getName());
+        }
+        logger.debug("Returning videoIds of user=" + email);
+        return videoIds;
     }
 }

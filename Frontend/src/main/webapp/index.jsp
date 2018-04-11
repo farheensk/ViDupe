@@ -5,7 +5,7 @@
     <head>
         <meta name="google-site-verification" content="iYhWKv4VCjfVlWE5UxNvHJaKi7cqovfVog3NsW4hwQc" />
         <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-        <title>Insert title here</title>
+        <title>ViDupe- Duplicate Video Detection Service</title>
         <link rel="stylesheet" href="style.css">
         <script type="text/javascript">
             function loadUrl()

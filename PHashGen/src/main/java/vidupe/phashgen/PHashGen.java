@@ -6,7 +6,6 @@ import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.pubsub.v1.SubscriptionName;
 import vidupe.constants.Constants;
-import vidupe.message.HashGenMessage;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -19,18 +18,17 @@ public class PHashGen extends HttpServlet{
 
     public void doGet(HttpServletRequest request, HttpServletResponse response) {
         try {
-            StringBuilder receivedString = receiveMessages();
+            receiveMessages();
         } catch (Exception e) {
             e.printStackTrace();
         }
 
     }
 
-    public StringBuilder receiveMessages() throws InterruptedException {
+    public void receiveMessages() throws InterruptedException {
         SubscriptionName subscription = SubscriptionName.of(Constants.PROJECT, Constants.SUBSCRIPTION);
         VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService());
         MessageReceiver receiver = new VidupeMessageProcessor(vidupeStoreManager);
-
         Subscriber subscriber = Subscriber.newBuilder(subscription, receiver).build();
         subscriber.addListener(
                 new Subscriber.Listener() {
@@ -42,12 +40,5 @@ public class PHashGen extends HttpServlet{
                 },
                 MoreExecutors.directExecutor());
         subscriber.startAsync().awaitRunning();
-        StringBuilder display = new StringBuilder("default");
-        return display;
-
-    }
-
-    private void writeInDataStore(StringBuilder videoHashes, HashGenMessage message) {
-
     }
 }

@@ -2,8 +2,7 @@ package vidupe.frontend;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
-import com.google.cloud.Timestamp;
-import com.google.cloud.datastore.*;
+import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.gson.Gson;
 import com.google.protobuf.ByteString;
@@ -11,7 +10,7 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vidupe.constants.EntityProperties;
+import vidupe.constants.Constants;
 import vidupe.message.FilterMessage;
 
 import javax.servlet.ServletException;
@@ -34,10 +33,9 @@ import java.util.UUID;
 public class Login extends HttpServlet{
     private static final Logger logger = LoggerFactory.getLogger(Delete.class);
 
-    Datastore datastore;
     public static void publishMessages(FilterMessage message) throws Exception {
         // [START pubsub_publish]
-        TopicName topicName = TopicName.of("winter-pivot-192220", "frontend-topic");
+        TopicName topicName = TopicName.of(Constants.PROJECT, Constants.FRONTEND_TOPIC);
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
 
@@ -82,8 +80,9 @@ public class Login extends HttpServlet{
             StringBuilder content1 = readFromUrl(conn);
             GoogleAccount data = new Gson().fromJson(content1.toString(), GoogleAccount.class);
             String jobId = getUuid();
-            String ifExists = createEntity(data, jobId);
-            addAccessTokenToDataStore(jobId, data.getEmail(), accessToken);
+            VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService());
+            String ifExists =vidupeStoreManager.createEntity(data, jobId);
+            vidupeStoreManager.addAccessTokenToDataStore(jobId, data.getEmail(), accessToken);
             FilterMessage mesesage = FilterMessage.builder()
                     .jobId(jobId)
                     .accessToken(accessToken)
@@ -100,25 +99,6 @@ public class Login extends HttpServlet{
             } catch (Exception e) {
             e.printStackTrace();
         }
-
-
-    }
-
-    private void addAccessTokenToDataStore(String jobId, String email, String accessToken) {
-        this.datastore = DatastoreOptions.newBuilder().setNamespace("vidupe").build().getService();
-        Key key = createTokenKey(jobId,email);
-        Entity entity = Entity.newBuilder(key)
-                .set("accessToken", accessToken).build();
-        datastore.put(entity);
-
-    }
-
-    private Key createTokenKey(String jobId, String email) {
-        Key key = datastore.newKeyFactory()
-                .setKind("tokens")
-                .addAncestors(PathElement.of("user", email))
-                .newKey(jobId);
-        return key;
     }
 
     public String getUuid() {
@@ -128,53 +108,6 @@ public class Login extends HttpServlet{
                 +UUIDinString.substring(14,18)+UUIDinString.substring(19,23)+UUIDinString.substring(24);
         return jobID;
     }
-
-    private String createEntity(GoogleAccount data, String jobId) {
-
-        this.datastore = DatastoreOptions.newBuilder().setNamespace("vidupe").build().getService();
-        Key key = createKey(jobId, data.getEmail());
-               // key = datastore.newKeyFactory().setKind("users").newKey(data.getEmail());
-        String ifExists = "false";
-        Entity task = Entity.newBuilder(key)
-                .set(EntityProperties.USER_ID,data.getId())
-                .set(EntityProperties.NAME, data.getName())
-                .set(EntityProperties.EMAIL_ID,data.getEmail())
-                .set(EntityProperties.TOTAL_VIDEOS, 0)
-                .set(EntityProperties.CREATED, Timestamp.now())
-                .set(EntityProperties.DONE, false)
-                .build();
-        try {
-            datastore.add(task);
-        } catch (DatastoreException ex) {
-            if ("ALREADY_EXISTS".equals(ex.getReason())) {
-                // entity.getKey() already exists
-                ifExists = "true";
-                resetEntityProperty(datastore, key, task, jobId);
-            }
-        }
-      return ifExists;
-    }
-
-    public Key createKey(String keyName, String ancestorId) {
-        Key key = datastore.newKeyFactory()
-                .setKind("users")
-                .addAncestors(PathElement.of("user", ancestorId))
-                .newKey(keyName);
-        return key;
-    }
-    private void resetEntityProperty(Datastore datastore, Key key, Entity task, String jobId) {
-        Entity newtask = Entity.newBuilder(key)
-                .set(EntityProperties.USER_ID,task.getString(EntityProperties.USER_ID))
-                .set(EntityProperties.NAME, task.getString(EntityProperties.NAME))
-                .set(EntityProperties.EMAIL_ID,task.getString(EntityProperties.EMAIL_ID))
-                .set(EntityProperties.TOTAL_VIDEOS, 0)
-                .set(EntityProperties.CREATED, task.getTimestamp(EntityProperties.CREATED))
-                .set(EntityProperties.DONE, false)
-                .build();
-        datastore.put(newtask);
-
-    }
-
 
     private StringBuilder readFromUrl(URLConnection conn) throws IOException {
         try(BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {

@@ -2,32 +2,29 @@ package vidupe.filter;
 
 import java.util.Comparator;
 
-public class MapComparator implements Comparator<VideoMetaData>
-{
+public class MapComparator implements Comparator<VideoMetaData> {
     private final String key;
 
-    public MapComparator(String key)
-    {
+    public MapComparator(String key) {
         this.key = key;
     }
 
     public int compare(VideoMetaData first,
-                       VideoMetaData second)
-    {
+                       VideoMetaData second) {
         Long firstValue;
         Long secondValue;
-        switch (key){
+        switch (key) {
             case "duration":
                 firstValue = second.getDuration();
                 secondValue = first.getDuration();
                 //returns in descending order
                 break;
-            case  "height":
+            case "height":
                 firstValue = first.getHeight();
                 secondValue = second.getHeight();
                 //returns in ascending order
                 break;
-            case  "width":
+            case "width":
                 firstValue = first.getWidth();
                 secondValue = second.getWidth();
                 //returns in ascending order

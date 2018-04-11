@@ -16,21 +16,18 @@ import javax.servlet.http.HttpServletResponse;
 @WebServlet("/dedupe")
 public class DeDupe extends HttpServlet {
 
-
     public void doGet(HttpServletRequest request, HttpServletResponse response) {
         try {
             receiveMessages();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
+
     public StringBuilder receiveMessages() throws InterruptedException {
         SubscriptionName subscription = SubscriptionName.of(Constants.PROJECT, Constants.SUBSCRIPTION);
         VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService());
         MessageReceiver receiver = new VidupeMessageProcessor(vidupeStoreManager);
-
         Subscriber subscriber = Subscriber.newBuilder(subscription, receiver).build();
         subscriber.addListener(
                 new Subscriber.Listener() {
@@ -44,8 +41,5 @@ public class DeDupe extends HttpServlet {
         subscriber.startAsync().awaitRunning();
         StringBuilder display = new StringBuilder("default");
         return display;
-
     }
-
-
 }

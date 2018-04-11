@@ -11,11 +11,10 @@ import vidupe.constants.Constants;
 import vidupe.constants.EntityProperties;
 import vidupe.message.HashGenMessage;
 
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.io.File;
+import java.util.*;
 
+import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
 public class VidupeStoreManagerTest {
@@ -43,11 +42,21 @@ public class VidupeStoreManagerTest {
         Datastore datastore = DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService();
         VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(datastore);
         String id = createVidupeEntity(p1);
-        String id2 = createVidupeEntity(p2);
         HashGenMessage message = HashGenMessage.builder().videoId(id).email(CLIENT_ID).build();
         boolean checkIfAllVideosAreProcessed = vidupeStoreManager.checkIfAllVideosAreProcessed(message);
-        assertEquals(p1&&p2 , checkIfAllVideosAreProcessed);
+        assertEquals(p1 && p2, checkIfAllVideosAreProcessed);
     }
+
+    @Test
+    public void getAllVideoIdsOfUser() {
+        String id;
+        for (int i = 0; i < 4; i++) {
+           createVidupeEntity(true);
+        }
+        ArrayList<String> videoIdsOfUser = vidupeStoreManager.getAllVideoIdsOfUser(CLIENT_ID);
+        assertTrue(videoIdsOfUser.size() != 0);
+    }
+
 
     private String createVidupeEntity(boolean isProcessed) {
         String id = getKey();
@@ -63,6 +72,7 @@ public class VidupeStoreManagerTest {
         return VideoMetaData.builder().videoSize(100L).duration(10L).height(100L).dateModified(new DateTime(date))
                 .width(100L).id(id).description("crap").name("test-name").build();
     }
+
     private String getKey() {
         Random r = new Random();
         int k = r.nextInt(1000);
@@ -77,12 +87,14 @@ public class VidupeStoreManagerTest {
                 .set(EntityProperties.VIDEO_NAME, videoMetaData.getName())
                 .set(EntityProperties.DURATION, videoMetaData.getDuration())
                 .set(EntityProperties.LAST_PROCESSED, Timestamp.now().getSeconds() * 1000)
+                .set(EntityProperties.DEDUPE_PROCESS, false)
                 .set(EntityProperties.VIDEO_LAST_MODIFIED, 12324)
                 .set(EntityProperties.EXISTS_IN_DRIVE, true)
-                .set(EntityProperties.PROCESSED, processed)
+                .set(EntityProperties.PHASHGEN_PROCESSED, processed)
                 .set(EntityProperties.NUM_KEYFRAMES, 12)
                 .build();
     }
+
     private Key createKey(String keyName, String ancestorId) {
         Key key = datastore.newKeyFactory()
                 .setKind("videos")
@@ -96,10 +108,36 @@ public class VidupeStoreManagerTest {
         this.datastore.delete(key);
     }
 
+    @Test
+    public void writeAudioHashesInDataStore() {
+        String videFilePath = "/media/farheen/01D26F1D020D3380/CC_WEB_VIDEO/test2/";
+        File downloadedFile = new File(videFilePath + "/2_711_H.wmv");
+        AudioProcessor audioProcessor = new AudioProcessor(videFilePath, downloadedFile);
+        //final byte[] bytes = audioProcessor.processAudio();
+        final byte[] bytes = new byte[0];
+        HashGenMessage message = HashGenMessage.builder().videoId("12345").email("farheen@gmail.com").build();
+        vidupeStoreManager.writeAudioHashesInDataStore(bytes, message);
+        Key key = datastore.newKeyFactory().setKind("audio").addAncestors(PathElement.of(message.getEmail(), message.getVideoId()))
+                .newKey(1);
+        Entity entity = datastore.get(key);
+        System.out.println(bytes);
+        System.out.println("=======");
+        final Blob value = entity.getBlob("value");
+        byte[] bytes1 = value.toByteArray();
+        for (byte b : bytes1) {
+            System.out.println(b);
+        }
+        System.out.println(value + "    " + bytes1);
+        System.out.println("Bytes written in datastore");
+    }
+
+
     @After
     public void cleanUp() {
-        for(String k : keyList) {
+        for (String k : keyList) {
             deleteEntity(k, CLIENT_ID);
         }
     }
+
+
 }

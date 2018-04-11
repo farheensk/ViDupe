@@ -9,11 +9,13 @@ import org.junit.Test;
 import vidupe.filter.constants.Constants;
 import vidupe.filter.constants.VideoEntityProperties;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
+import static org.apache.http.protocol.HTTP.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -117,7 +119,7 @@ public class VidupeStoreManagerTest {
                 .set(VideoEntityProperties.LAST_PROCESSED, Timestamp.now().getSeconds() * 1000)
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, 12342)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, ifExists)
-                .set(VideoEntityProperties.PROCESSED, false)
+                .set(VideoEntityProperties.PHASHGEN_PROCESSED, false)
                 .set(VideoEntityProperties.VIDEO_SIZE, videoMetaData.getVideoSize())
                 .set(VideoEntityProperties.NUM_KEYFRAMES, 0)
                 .build();
@@ -154,6 +156,12 @@ public class VidupeStoreManagerTest {
         String key = String.valueOf(k);
         keyList.add(key);
         return key;
+    }
+    @Test
+    public void testNullBlob() throws UnsupportedEncodingException {
+        String data = null;
+        final byte[] bytes = data.getBytes(UTF_8);
+        System.out.println(bytes);
     }
 
     @After
