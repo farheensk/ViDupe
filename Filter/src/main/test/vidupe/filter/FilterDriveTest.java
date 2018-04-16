@@ -12,6 +12,7 @@ import com.google.pubsub.v1.TopicName;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.junit.Test;
+import vidupe.filter.constants.Constants;
 
 import java.io.IOException;
 import java.util.*;
@@ -59,7 +60,7 @@ public class FilterDriveTest {
             // Similarly for SubscriptionAdminClient
             try {
 
-                TopicName topicName = TopicName.of("winter-pivot-192220", "filter-topic");
+                TopicName topicName = TopicName.of(Constants.PROJECT, "filter-topic");
 
                 Publisher publisher =
                         Publisher.newBuilder(topicName)

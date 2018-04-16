@@ -91,7 +91,13 @@ public class Results extends HttpServlet {
                             request.getRequestDispatcher("/noDuplicatesPage.jsp").forward(request,response);
                         }
                     } else if((blob!=null) && blob.exists()) {
-                        request.getRequestDispatcher("/noDuplicatesPage.jsp").forward(request,response);
+                        ByteString content = ByteString.copyFrom(blob.getContent());
+                        String messageString = content.toStringUtf8();
+                        if(messageString.equals("{}"))
+                             request.getRequestDispatcher("/noDuplicatesPage.jsp").forward(request,response);
+                        else if(messageString.equals("401")){
+                            request.getRequestDispatcher("/somethingWentWrongPage.jsp").forward(request,response);
+                        }
                     }
                // }
 //

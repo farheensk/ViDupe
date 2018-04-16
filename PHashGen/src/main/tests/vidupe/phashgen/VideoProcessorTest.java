@@ -16,20 +16,27 @@ public class VideoProcessorTest {
         String accessToken = "ya29.Glt7BanDIhHKwGBfkXzfYiiY6VabSDevaQIYYIDRd4YYnL5nUDCWZs27SuBRT1Ijrqv8A9schQ-Rx11JK3XxItvig3nTslQGuAMOxt2NHIWO7TS4vILZxWyoQ55i";
         HashGenMessage message = HashGenMessage.builder().accessToken(accessToken).videoId("0B-cyY07ful39VDBYQkxvZmRuek0")
                 .videoName("video.mp4").email("").build();
-        final Drive drive = videoProcessor.getDrive(message);
+        Drive drive = videoProcessor.getDrive(message);
         assertTrue("drive returned null", drive != null);
     }
 
     @Test
     public void processVideo() {
         VideoProcessor videoProcessor = new VideoProcessor();
-        String accessToken = "ya29.GluRBUm5gZ-QBrtKsPXR7-tj7q-9wA8iRf189h0YcM4DAf-HmanOsIbOlylAdU5l5Abf6kxVWLJnTz8zsYSFmODu_W3-ATtGIYoTQ4MPdCXFWuVQk4zTcSHzEMzV";
-        HashGenMessage message = HashGenMessage.builder().accessToken(accessToken).videoId("1IjBu9EIRppivyrd_b7g8PqnikCBznhPy")
+        String accessToken = "ya29.GlueBTbY9Z-Ydt7GZhJ-VZwlBgUWELTx8I5KCIx2l39kFUNkAnOxJ7zXDrNLrW9G67erZaEb6kTidCUm4dHqDa9Il8sd3hEy64_Wt_awFI0ESGAxMy-XsBbRI_dS";
+        String videoId = "1IjBu9EIRppivyrd_b7g8PqnikCBznhPy";
+        videoId = "123";
+        HashGenMessage message = HashGenMessage.builder().accessToken(accessToken).videoId(videoId)
                 .videoName("video.flv").email("").build();
-        final Drive drive = videoProcessor.getDrive(message);
+        Drive drive = videoProcessor.getDrive(message);
         VideoAudioHashes hashes = videoProcessor.processVideo(message, drive);
-        System.out.println(hashes.getVideoHashes());
-        System.out.println(hashes.getAudioHashes());
-        assertTrue("hashes are null", hashes.getVideoHashes() != null);
+        if(hashes!=null){
+            System.out.println(hashes.getVideoHashes());
+            System.out.println(hashes.getAudioHashes());
+            assertTrue("hashes are null", hashes.getVideoHashes() != null);
+        }
+        else
+            assertTrue(hashes == null);
+
     }
 }

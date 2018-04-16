@@ -61,7 +61,7 @@ public class Login extends HttpServlet{
     }
 
     public void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+            throws IOException, ServletException {
         try {
             // "&scope=Google_Service_Drive::DRIVE"+
             String code = request.getParameter("code");
@@ -97,6 +97,7 @@ public class Login extends HttpServlet{
             logger.info("Results_available_at "+resultsURL);
             response.sendRedirect(request.getContextPath() + "/Results?jobid="+jobId+"&email="+data.getEmail());
             } catch (Exception e) {
+            request.getRequestDispatcher("/somethingWentWrongPage.jsp").forward(request,response);
             e.printStackTrace();
         }
     }

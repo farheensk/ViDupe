@@ -35,7 +35,7 @@ public class VideoProcessor {
     public VideoAudioHashes processVideo(HashGenMessage message, Drive drive) {
         VideoAudioHashes videoAudioHashes = null;
         try {
-            ArrayList<String> videoHashes = null;
+            ArrayList<String> videoHashes = new ArrayList<>();
             String pathname = String.valueOf(System.currentTimeMillis());
             java.io.File dir = new java.io.File(pathname);
             if(dir.exists())

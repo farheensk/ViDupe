@@ -12,6 +12,7 @@ import com.google.pubsub.v1.TopicName;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import junit.framework.TestCase;
+import vidupe.constants.Constants;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,7 +38,7 @@ public class PHashGenTest extends TestCase {
             // Similarly for SubscriptionAdminClient
             try {
 
-                TopicName topicName = TopicName.of("winter-pivot-192220", "filter-topic");
+                TopicName topicName = TopicName.of(Constants.PROJECT, "filter-topic");
 
                 Publisher publisher =
                         Publisher.newBuilder(topicName)

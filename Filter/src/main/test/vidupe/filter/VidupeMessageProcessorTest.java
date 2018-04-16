@@ -87,7 +87,7 @@ public class VidupeMessageProcessorTest {
         Datastore datastore = DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService();
         VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(datastore);
         VidupeMessageProcessor vidupeMessageProcessor = new VidupeMessageProcessor(vidupeStoreManager);
-        FilterMessage filterMessage = FilterMessage.builder().accessToken("ya29.GluIBbOPssVV7tOuc2x95tibiAIItzlYlpRY215Tlf4olr31ETWNqTWHRyG_G5k4IV7IiOpzYbZUO2iiQa7KRkMgJSkhXIDNC1iitzmbv7HwR6Vms2CwF5lDH-VC").build();
+        FilterMessage filterMessage = FilterMessage.builder().accessToken("ya29.GlueBTbY9Z-Ydt7GZhJ-VZwlBgUWELTx8I5KCIx2l39kFUNkAnOxJ7zXDrNLrW9G67erZaEb6kTidCUm4dHqDa9Il8sd3hEy64_Wt_awFI0ESGAxMy-XsBbRI_dS").build();
         List<VideoMetaData> videosList = vidupeMessageProcessor.getVideosList(filterMessage);
         DurationFilter durationFilter = new DurationFilter();
         durationFilter.filterOutDurations(videosList);

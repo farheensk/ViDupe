@@ -62,7 +62,7 @@ public class VidupeStoreManagerTest {
         String id = getKey();
         Date date = new Date();
         VideoMetaData videoMetaData = createVideoMetaData(id, date);
-        final Entity entity = createEntity(videoMetaData, CLIENT_ID, isProcessed);
+        Entity entity = createEntity(videoMetaData, CLIENT_ID, isProcessed);
         datastore.add(entity);
         logger.info("Created entity with id = " + id);
         return id;
@@ -114,7 +114,7 @@ public class VidupeStoreManagerTest {
         File downloadedFile = new File(videFilePath + "/2_711_H.wmv");
         AudioProcessor audioProcessor = new AudioProcessor(videFilePath, downloadedFile);
         //final byte[] bytes = audioProcessor.processAudio();
-        final byte[] bytes = new byte[0];
+        byte[] bytes = new byte[0];
         HashGenMessage message = HashGenMessage.builder().videoId("12345").email("farheen@gmail.com").build();
         vidupeStoreManager.writeAudioHashesInDataStore(bytes, message);
         Key key = datastore.newKeyFactory().setKind("audio").addAncestors(PathElement.of(message.getEmail(), message.getVideoId()))
@@ -122,7 +122,7 @@ public class VidupeStoreManagerTest {
         Entity entity = datastore.get(key);
         System.out.println(bytes);
         System.out.println("=======");
-        final Blob value = entity.getBlob("value");
+        Blob value = entity.getBlob("value");
         byte[] bytes1 = value.toByteArray();
         for (byte b : bytes1) {
             System.out.println(b);

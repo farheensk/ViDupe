@@ -63,7 +63,8 @@ public class VidupeMessageProcessor implements MessageReceiver {
         ByteString messageFromFilter = message.getData();
         String messageString = messageFromFilter.toStringUtf8();
         ObjectMapper mapper = new ObjectMapper();
-        FilterMessage filterMessage;
+        FilterMessage filterMessage = null;
+        int messageCount = 0;
         try {
             filterMessage = mapper.readValue(messageString, FilterMessage.class);
             List<VideoMetaData> metaDataList = getVideosList(filterMessage);
@@ -71,7 +72,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
             List<VideoMetaData> listFiles = durationFilter.filterOutDurations(metaDataList);
             String jobId = filterMessage.getJobId();
             String clientId = filterMessage.getEmail();
-            int messageCount = 0;
+
             for (VideoMetaData videoMetaData : listFiles) {
                 boolean proceedToHashGen = sendToHashGen(filterMessage, clientId, videoMetaData);
                 if (proceedToHashGen) {
@@ -92,26 +93,33 @@ public class VidupeMessageProcessor implements MessageReceiver {
             analyzeListFilesAndMessageCount(filterMessage, listFiles, messageCount, metaDataList.size());
             consumer.ack();
         } catch (Exception e) {
+            String path = filterMessage.getEmail() + "/" + filterMessage.getJobId();
+            try {
+                writeResultsToDataStore(path, "401");
+            } catch (UnsupportedEncodingException e1) {
+                e1.printStackTrace();
+            }
+            updateUserStatus(filterMessage, messageCount, 0, true, true);
             e.printStackTrace();
         }
     }
 
     private void analyzeListFilesAndMessageCount(FilterMessage filterMessage, List<VideoMetaData> listFiles, int messageCount, int totalVideos) throws Exception {
-        if(messageCount>0){
+        if (messageCount > 0) {
             updateUserStatus(filterMessage, messageCount, totalVideos, false, false);
         }
-        if(messageCount == 0){
+        if (messageCount == 0) {
             if (listFiles.size() >= 2) {
                 updateUserStatus(filterMessage, messageCount, totalVideos, true, false);
                 ArrayList<String> videoIdsOfUser = vidupeStoreManager.getAllVideoIdsOfUser(filterMessage.getEmail());
-                for(String videoId:videoIdsOfUser){
+                for (String videoId : videoIdsOfUser) {
                     DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(filterMessage.getJobId())
                             .email(filterMessage.getEmail()).videoId(videoId).build();
                     publishMessageToDeDupe(messageToDeDupe);
                 }
             }
             if (listFiles.size() == 0) {
-                String path = filterMessage.getEmail()+"/"+filterMessage.getJobId();
+                String path = filterMessage.getEmail() + "/" + filterMessage.getJobId();
                 writeResultsToDataStore(path, "{}");
                 updateUserStatus(filterMessage, messageCount, totalVideos, true, true);
             }
@@ -202,7 +210,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
                     vidupeStoreManager.resetEntityProperty(entity, videoMetaData, true);
                 }
             }
-            String path = filterMessage.getEmail()+"/"+filterMessage.getJobId()+"/"+ videoMetaData.getId();
+            String path = filterMessage.getEmail() + "/" + filterMessage.getJobId() + "/" + videoMetaData.getId();
             writeResultsToDataStore(path, "{}");
         } else {
             if (entity == null) {
@@ -238,8 +246,11 @@ public class VidupeMessageProcessor implements MessageReceiver {
                 String type = file.getMimeType();
                 if (Pattern.matches("video/.*", type)) {
                     File.VideoMediaMetadata video_Media_MetaData = file.getVideoMediaMetadata();
-                    videoMetaDataList.add(getMetaData(file.getId(), file.getName(), file.getDescription(), file.getModifiedTime(), file.getSize(),
-                            video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth()));
+                    if (video_Media_MetaData != null) {
+                        videoMetaDataList.add(getMetaData(file.getId(), file.getName(), file.getDescription(), file.getModifiedTime(), file.getSize(),
+                                video_Media_MetaData.getDurationMillis(), video_Media_MetaData.getHeight(), video_Media_MetaData.getWidth()));
+
+                    }
                 }
             }
 

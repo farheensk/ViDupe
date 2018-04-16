@@ -45,32 +45,34 @@ public class VidupeMessageProcessor implements MessageReceiver {
             VideoProcessor videoProcessor = new VideoProcessor();
             Drive drive = videoProcessor.getDrive(hashGenMessage);
             VideoAudioHashes videoAudioHashes = videoProcessor.processVideo(hashGenMessage, drive);
+            if(videoAudioHashes!=null){
+                ArrayList<Long> longHashes = convertStringHashesToLong(videoAudioHashes.getVideoHashes());
 
-            ArrayList<Long> longHashes = convertStringHashesToLong(videoAudioHashes.getVideoHashes());
-
-            boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, videoAudioHashes.getAudioHashes(), hashGenMessage);
-            if (canSendMessage) {
-                boolean doneHashgenProcess = true;
-                ArrayList<String> videoIdsOfUser = vidupeStoreManager.getAllVideoIdsOfUser(hashGenMessage.getEmail());
-                for(String videoId:videoIdsOfUser){
-                    DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(hashGenMessage.getJobId())
-                            .email(hashGenMessage.getEmail()).videoId(videoId).build();
-                    publishMessage(messageToDeDupe);
+                boolean canSendMessage = vidupeStoreManager.writeInDataStore(longHashes, videoAudioHashes.getAudioHashes(), hashGenMessage);
+                if (canSendMessage) {
+                    boolean doneHashgenProcess = true;
+                    ArrayList<String> videoIdsOfUser = vidupeStoreManager.getAllVideoIdsOfUser(hashGenMessage.getEmail());
+                    for (String videoId : videoIdsOfUser) {
+                        DeDupeMessage messageToDeDupe = DeDupeMessage.builder().jobId(hashGenMessage.getJobId())
+                                .email(hashGenMessage.getEmail()).videoId(videoId).build();
+                        publishMessage(messageToDeDupe);
+                    }
+                    vidupeStoreManager.resetUserEntityProperty(hashGenMessage, doneHashgenProcess);
                 }
-                vidupeStoreManager.resetUserEntityProperty(hashGenMessage, doneHashgenProcess);
             }
-            consumer.ack();
         } catch (Exception e) {
             logger.error("Message receive exception: ", e);
-            consumer.nack();
         }
+        consumer.ack();
     }
 
     public ArrayList<Long> convertStringHashesToLong(ArrayList<String> hashes) {
         ArrayList<Long> longHashes = new ArrayList<>();
-        for (String hash : hashes) {
-            long longHash = parseLong(hash, 2);
-            longHashes.add(longHash);
+        if (hashes != null) {
+            for (String hash : hashes) {
+                long longHash = parseLong(hash, 2);
+                longHashes.add(longHash);
+            }
         }
         return longHashes;
     }

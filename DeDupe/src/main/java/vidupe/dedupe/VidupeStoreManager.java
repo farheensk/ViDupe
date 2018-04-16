@@ -117,7 +117,7 @@ public class VidupeStoreManager {
         return key;
     }
 
-    private Entity[] getVideoHashEntities(String clientId, Key videoId) {
+    public Entity[] getVideoHashEntities(String clientId, Key videoId) {
         Key ancestorPath = datastore.newKeyFactory().setKind(clientId).newKey(videoId.getName());
         Query<Entity> query = Query.newEntityQueryBuilder().setKind("VideoHashes")
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
@@ -128,23 +128,25 @@ public class VidupeStoreManager {
     }
 
     public List<List<String>> intraComparison(List<String> videoHashesList, int threshold) {
-        int size = videoHashesList.size();
-        ComputeHammingDistance computeHammingDistance = new ComputeHammingDistance();
         List<List<String>> groupedHashes = new ArrayList<>();
-        int[] flag = new int[size];
-        for (int i = 0; i < size; i++) {
-            ArrayList<String> list = new ArrayList<>();
-            if (flag[i] == 0) {
-                list.add(videoHashesList.get(i));
-                for (int j = i + 1; j < size; j++) {
-                    double distance = computeHammingDistance.hammingDistance(videoHashesList.get(i), videoHashesList.get(j));
-                    if (distance <= threshold) {
-                        flag[j] = 1;
-                        list.add(videoHashesList.get(j));
-                    } else
-                        break;
+        if(videoHashesList!=null) {
+            int size = videoHashesList.size();
+            ComputeHammingDistance computeHammingDistance = new ComputeHammingDistance();
+            int[] flag = new int[size];
+            for (int i = 0; i < size; i++) {
+                ArrayList<String> list = new ArrayList<>();
+                if (flag[i] == 0) {
+                    list.add(videoHashesList.get(i));
+                    for (int j = i + 1; j < size; j++) {
+                        double distance = computeHammingDistance.hammingDistance(videoHashesList.get(i), videoHashesList.get(j));
+                        if (distance <= threshold) {
+                            flag[j] = 1;
+                            list.add(videoHashesList.get(j));
+                        } else
+                            break;
+                    }
+                    groupedHashes.add(list);
                 }
-                groupedHashes.add(list);
             }
         }
         return groupedHashes;

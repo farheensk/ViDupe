@@ -69,4 +69,21 @@ public class VidupeStoreManagerTest {
         Key key = createKey(keyName, clientId);
         this.datastore.delete(key);
     }
+
+    @Test
+    public void intraComparison() {
+        vidupeStoreManager.intraComparison(null, Constants.THRESHOLD);
+    }
+
+    @Test
+    public void getVideoHashEntities() {
+        String videoId = getKey();
+        Key key1 = datastore.newKeyFactory().setKind("VideoHashes").addAncestors(PathElement.of(CLIENT_ID, videoId))
+                .newKey(1);
+        vidupeStoreManager.getVideoHashEntities(CLIENT_ID,key1);
+    }
+
+    @Test
+    public void resetVideoEntityDeDupeProperty() {
+    }
 }
