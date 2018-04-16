@@ -1,5 +1,6 @@
 package vidupe.phashgen;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.junit.Test;
 
@@ -7,6 +8,7 @@ import java.io.File;
 
 import static junit.framework.TestCase.assertTrue;
 
+@Slf4j
 public class AudioProcessorTest {
     String videFilePath = "/media/farheen/01D26F1D020D3380/CC_WEB_VIDEO/test2/";
     File downloadedFile = new File(videFilePath + "/2_711_H.wmv");

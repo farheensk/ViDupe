@@ -2,6 +2,7 @@ package vidupe.phashgen;
 
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Iterators;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vidupe.constants.EntityProperties;
@@ -11,17 +12,16 @@ import vidupe.message.HashGenMessage;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class VidupeStoreManager {
 
     private final Datastore datastore;
-    private static final Logger logger = LoggerFactory.getLogger(VidupeStoreManager.class);
-
     public VidupeStoreManager(Datastore dataStore) {
         this.datastore = dataStore;
     }
 
     public Entity findByKey(String id, String ancestorId) {
-        logger.debug("Finding key :" + id);
+        log.debug("Finding key :" + id);
         Key key = createKey(id, ancestorId);
         Query<Entity> query1 = Query.newEntityQueryBuilder()
                 .setFilter(StructuredQuery.PropertyFilter.eq("__key__", key))
@@ -37,7 +37,7 @@ public class VidupeStoreManager {
     }
 
     public void resetVideoEntityPHashgenProperty(Entity e, HashGenMessage message, int keyFramesSize) {
-        logger.info("Marking entity processed, key=" + e.getKey());
+        log.info("Marking entity processed, key=" + e.getKey());
         Key key = createKey(message.getVideoId(), message.getEmail());
         Entity task = Entity.newBuilder(key)
                 .set(EntityProperties.VIDEO_NAME, e.getString(EntityProperties.VIDEO_NAME))
@@ -51,8 +51,8 @@ public class VidupeStoreManager {
                 .set(EntityProperties.NUM_KEYFRAMES, keyFramesSize)
                 .build();
         Entity modifiedEntity = datastore.put(task);
-        logger.info("Entity marked as processed, key=" + e.getKey());
-        logger.debug("Modified Entity = " + printEntity(modifiedEntity));
+        log.info("Entity marked as processed, key=" + e.getKey());
+        log.debug("Modified Entity = " + printEntity(modifiedEntity));
     }
 
     private String printEntity(Entity e) {
@@ -95,7 +95,7 @@ public class VidupeStoreManager {
     }
 
     public void writeAudioHashesInDataStore(byte[] audioHashes, HashGenMessage message) {
-        logger.info("Writing Audio hashes to data-store");
+        log.info("Writing Audio hashes to data-store");
         Blob blob = Blob.copyFrom(audioHashes);
         blob.getLength();
         Key key = datastore.newKeyFactory().setKind("audio").addAncestors(PathElement.of(message.getEmail(), message.getVideoId()))
@@ -103,12 +103,12 @@ public class VidupeStoreManager {
         Entity hashEntity = Entity.newBuilder(key).
                 set("value", BlobValue.newBuilder(blob).setExcludeFromIndexes(true).build()).build();
         datastore.put(hashEntity);
-        logger.info("Finished writing of audio hashes");
+        log.info("Finished writing of audio hashes");
     }
 
     public boolean checkIfAllVideosAreProcessed(HashGenMessage message) {
         String email = message.getEmail();
-        logger.info("Checking if all videos are processed for user=" + email);
+        log.info("Checking if all videos are processed for user=" + email);
 
         boolean canSend = false;
         for (int i = 0; i < 3; i++) {
@@ -122,16 +122,16 @@ public class VidupeStoreManager {
             QueryResults<Key> results = this.datastore.run(query);
             if (!results.hasNext()) {
                 canSend = true;
-                logger.info("All videos are processed, user=" + email);
+                log.info("All videos are processed, user=" + email);
                 break;
             }
         }
-        logger.debug("Returning canDedupe=" + canSend);
+        log.debug("Returning canDedupe=" + canSend);
         return canSend;
     }
 
     public void writeHashesInDataStore(ArrayList<Long> hashes, HashGenMessage message) {
-        logger.info("Writing Video hashes to data-store");
+        log.info("Writing Video hashes to data-store");
         int i = 1;
         List<Entity> hashesList = new ArrayList<>();
         for (long hash : hashes) {
@@ -147,12 +147,12 @@ public class VidupeStoreManager {
             }
         }
         datastore.put(Iterators.toArray(hashesList.iterator(), Entity.class));
-        logger.info("Completed writing video hashes");
+        log.info("Completed writing video hashes");
     }
 
     public ArrayList<String> getAllVideoIdsOfUser(String email) {
         ArrayList<String> videoIds = new ArrayList<>();
-        logger.info("Retrieving videos of user=" + email);
+        log.info("Retrieving videos of user=" + email);
             Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(email);
         Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
                 .setFilter(
@@ -166,7 +166,7 @@ public class VidupeStoreManager {
             while (results.hasNext()){
                 videoIds.add(results.next().getName());
             }
-        logger.debug("Returning videoIds of user=" + email);
+        log.debug("Returning videoIds of user=" + email);
         return videoIds;
     }
 

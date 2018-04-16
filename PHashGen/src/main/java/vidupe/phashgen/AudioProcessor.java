@@ -2,6 +2,7 @@ package vidupe.phashgen;
 
 import com.musicg.fingerprint.FingerprintManager;
 import com.musicg.wave.Wave;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,8 +10,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 
+@Slf4j
 public class AudioProcessor {
-    private static final Logger logger = LoggerFactory.getLogger(VideoProcessor.class);
     static Runtime runtime = Runtime.getRuntime();
     String videoFilePath;
     File videoFile;
@@ -22,18 +23,18 @@ public class AudioProcessor {
     }
 
     public byte[] processAudio() {
-        logger.info("Analyzing Audio:start");
+        log.info("Analyzing Audio:start");
         boolean extractionSuccess = extractAudio();
         if(extractionSuccess){
             byte[] audioHashes = generateAudioHashes();
             return audioHashes;
         }
-        logger.info("Analyzing Audio:end");
+        log.info("Analyzing Audio:end");
        return new byte[0];
     }
 
     public boolean extractAudio() {
-        logger.info("Audio extraction:start");
+        log.info("Audio extraction:start");
         String fileName1 = FilenameUtils.removeExtension(videoFile.getName());
         boolean ifAudioExtracted = false;
 
@@ -48,26 +49,26 @@ public class AudioProcessor {
         } catch (InterruptedException | IOException e) {
             e.printStackTrace();
         }
-        logger.info("Audio extraction:end");
+        log.info("Audio extraction:end");
         return ifAudioExtracted;
     }
 
     public byte[] generateAudioHashes() {
-        logger.info("Generating Audio Hashes:start");
+        log.info("Generating Audio Hashes:start");
         String fileName1 = FilenameUtils.removeExtension(videoFile.getName());
         byte[] firstFingerPrint = new FingerprintManager().extractFingerprint(new Wave(videoFilePath + fileName1 + ".wav"));
         deleteFile();
-        logger.info("Generating Audio Hashes:end");
+        log.info("Generating Audio Hashes:end");
         return firstFingerPrint;
     }
 
     public void deleteFile() {
         String fileName = FilenameUtils.removeExtension(videoFile.getName());
         File file = new File(videoFilePath + fileName + ".wav");
-        logger.info("Deleting audio file:start");
+        log.info("Deleting audio file:start");
         if (file.exists()) {
             file.delete();
         }
-        logger.info("Deleting audio file:start");
+        log.info("Deleting audio file:start");
     }
 }

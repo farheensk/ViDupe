@@ -2,6 +2,7 @@ package vidupe.dedupe;
 
 import com.google.cloud.datastore.*;
 import com.google.common.collect.Iterators;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vidupe.constants.UserEntityProperties;
@@ -11,39 +12,43 @@ import vidupe.message.DeDupeMessage;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class VidupeStoreManager {
 
     private final Datastore datastore;
     final static int threshold = 21;
-
-    private static final Logger logger = LoggerFactory.getLogger(VidupeStoreManager.class);
 
     public VidupeStoreManager(Datastore dataStore) {
         this.datastore = dataStore;
     }
 
     public Key[] getVideoIdsOfUser(String clientID) {
+        log.info("Feteching video IDs of user: Start");
         Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(clientID);
         Query<Key> query = Query.newKeyQueryBuilder().setKind("videos")
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
                 .build();
         QueryResults<Key> result = this.datastore.run(query);
         Key[] keys = Iterators.toArray(result, Key.class);
+        log.info("Feteching video IDs of user: End");
         return keys;
     }
 
     public List<VideoHashesInformation> getVideoAudioHashesFromStore(Key[] videoIdsOfUser, String clientId) {
 
+        log.info("Get Video and Audio hashes of all videos of user:"+clientId+":Start");
         List<VideoHashesInformation> videoAudioHashes = new ArrayList<>();
         for (Key videoId : videoIdsOfUser) {
             VideoHashesInformation video1 = getSingleVideoAudioHashes(clientId, videoId);
             videoAudioHashes.add(video1);
         }
+        log.info("Get Video and Audio hashes of all videos of user:"+clientId+":End");
         return videoAudioHashes;
 
     }
 
     public VideoHashesInformation getSingleVideoAudioHashes(String clientId, Key videoId) {
+        log.info("Get Video and Audio hashes of videoId="+videoId.getName()+" :Start");
         Entity[] videoEntities = getVideoHashEntities(clientId, videoId);
         List<String> hashes = enityToList(videoEntities);
         Entity e = retrieveVideoEntityInformation(videoId, clientId);
@@ -58,10 +63,12 @@ public class VidupeStoreManager {
                 .hashes(hashesAfterIntraComparison)
                 .audioHashes(audioHashes)
                 .build();
+        log.info("Get Video and Audio hashes of videoId="+videoId.getName()+" :End");
         return video;
     }
 
     public byte[] audioHashesFromBlob(Entity[] audioEntities) {
+        log.info("Fetching audio hashes: Start");
         byte[][] audioHashes = new byte[audioEntities.length][];
         int i = 0;
         int length = 0;
@@ -79,21 +86,24 @@ public class VidupeStoreManager {
             System.arraycopy(hash, 0, audioHashOfAVideo, destinationPosition, hash.length);
             destinationPosition = destinationPosition + hash.length;
         }
-
+        log.info("Fetching audio hashes: End");
         return audioHashOfAVideo;
     }
 
     public Entity[] retrieveAudioEntityInformation(Key videoId, String clientId) {
+        log.info("Retrieving audio entity information of videoId="+videoId.getName()+":Start");
         Key ancestorPath = datastore.newKeyFactory().setKind(clientId).newKey(videoId.getName());
         Query<Entity> query = Query.newEntityQueryBuilder().setKind("audio")
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
                 .setOrderBy(StructuredQuery.OrderBy.asc("__key__"))
                 .build();
         QueryResults<Entity> result = this.datastore.run(query);
+        log.info("Retrieving audio entity information of videoId="+videoId.getName()+":End");
         return Iterators.toArray(result, Entity.class);
     }
 
     private Entity retrieveVideoEntityInformation(Key videoId, String clientId) {
+        log.info("Retrieving video entity information of videoId="+videoId.getName()+":Start");
         Key key = createKey(videoId.getName(), clientId);
 
         Query<Entity> query1 = Query.newEntityQueryBuilder()
@@ -106,28 +116,34 @@ public class VidupeStoreManager {
             if (e1.getKey().equals(key))
                 e = e1;
         }
+        log.info("Retrieving video entity information of videoId="+videoId.getName()+":End");
         return e;
     }
 
     public Key createKey(String keyName, String ancestorId) {
+        log.info("Creating key with ancestorId:"+ancestorId+", keyName:"+keyName+":Start");
         Key key = datastore.newKeyFactory()
                 .setKind("videos")
                 .addAncestors(PathElement.of("user", ancestorId))
                 .newKey(keyName);
+        log.info("Creating key with ancestorId:"+ancestorId+", keyName:"+keyName+":End");
         return key;
     }
 
     public Entity[] getVideoHashEntities(String clientId, Key videoId) {
+        log.info("Fetching video hash entities of user:"+clientId+", videoId:"+videoId.getName()+":Start");
         Key ancestorPath = datastore.newKeyFactory().setKind(clientId).newKey(videoId.getName());
         Query<Entity> query = Query.newEntityQueryBuilder().setKind("VideoHashes")
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
                 .setOrderBy(StructuredQuery.OrderBy.asc("__key__"))
                 .build();
         QueryResults<Entity> result = this.datastore.run(query);
+        log.info("Fetching video hash entities of user:"+clientId+", videoId:"+videoId.getName()+":End");
         return Iterators.toArray(result, Entity.class);
     }
 
     public List<List<String>> intraComparison(List<String> videoHashesList, int threshold) {
+        log.info("Intra comparison of video:Start");
         List<List<String>> groupedHashes = new ArrayList<>();
         if(videoHashesList!=null) {
             int size = videoHashesList.size();
@@ -149,27 +165,34 @@ public class VidupeStoreManager {
                 }
             }
         }
+        log.info("Intra comparison of video:End");
         return groupedHashes;
     }
 
     private List<String> enityToList(Entity[] videoHashes) {
+        log.info("Entity to list:Start");
         List<String> hashes = new ArrayList<>();
         for (Entity e : videoHashes) {
             Long lhash = e.getLong("value");
             String hash = convertToStringHash(lhash);
             hashes.add(hash);
         }
+        log.info("Entity to list:End");
         return hashes;
     }
 
     private String convertToStringHash(Long lhash) {
+        log.info("Convert long hash to String hash:Start");
         String binaryString = Long.toBinaryString(lhash);
         String zeros = "0000000000000000000000000000000000000000000000000000000000000000"; //String of 64 zeros
         binaryString = zeros.substring(binaryString.length()) + binaryString;
+        log.info("Convert long hash to String hash:End");
         return binaryString;
     }
 
     public void changeExitsInDrivePropertyOfVideo(DeDupeMessage deDupeMessage) {
+        log.info("Checking if "+deDupeMessage.getVideoId()+" exists in "+deDupeMessage.getEmail()+
+        " drive:Start");
         Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(deDupeMessage.getEmail());
         Query<Entity> query = Query.newEntityQueryBuilder().setKind("videos")
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
@@ -178,8 +201,12 @@ public class VidupeStoreManager {
         QueryResults<Entity> result = this.datastore.run(query);
         Entity[] entities = Iterators.toArray(result, Entity.class);
         for (Entity e : entities) {
+            log.info("video found");
             resetVideoEntityExistsInDriveProperty(e);
         }
+
+        log.info("Checking if "+deDupeMessage.getVideoId()+" exists in "+deDupeMessage.getEmail()+
+                " drive:End");
     }
 
     public void resetVideoEntityExistsInDriveProperty(Entity e) {
@@ -250,7 +277,7 @@ public class VidupeStoreManager {
 
     public boolean checkIfAllVideosAreProcessed(DeDupeMessage message) {
         String email = message.getEmail();
-        logger.info("Checking if all videos are processed for user=" + email);
+        log.info("Checking if all videos are processed for user=" + email);
 
         boolean ifProcessed = false;
         for (int i = 0; i < 3; i++) {
@@ -264,11 +291,11 @@ public class VidupeStoreManager {
             QueryResults<Key> results = this.datastore.run(query);
             if (!results.hasNext()) {
                 ifProcessed = true;
-                logger.info("All videos are processed, user=" + email);
+                log.info("All videos are processed, user=" + email);
                 break;
             }
         }
-        logger.debug("Returning canDedupe=" + ifProcessed);
+        log.debug("Returning canDedupe=" + ifProcessed);
         return ifProcessed;
     }
 

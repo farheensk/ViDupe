@@ -11,6 +11,7 @@ import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vidupe.constants.Constants;
@@ -21,10 +22,10 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class VidupeMessageProcessor implements MessageReceiver {
 
     private VidupeStoreManager vidupeStoreManager;
-    private static final Logger logger = LoggerFactory.getLogger(VidupeMessageProcessor.class);
 
     public VidupeMessageProcessor(VidupeStoreManager vidupeStoreManager) {
         this.vidupeStoreManager = vidupeStoreManager;
@@ -61,7 +62,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
                 }
             }
         } catch (Exception e) {
-            logger.error("Message receive exception: ", e);
+            log.error("Message receive exception: ", e);
         }
         consumer.ack();
     }
@@ -91,13 +92,13 @@ public class VidupeMessageProcessor implements MessageReceiver {
             messageIdFutures.add(messageIdFuture);
 
         } catch (Exception e) {
-            logger.error("An exception occurred when publishing message", e);
+            log.error("An exception occurred when publishing message", e);
         } finally {
             // wait on any pending publish requests.
             List<String> messageIds = ApiFutures.allAsList(messageIdFutures).get();
 
             for (String messageId : messageIds) {
-                logger.info("Published message. messageId=" + messageId + ", jobId=" + deDupeMessage.getJobId());
+                log.info("Published message. messageId=" + messageId + ", jobId=" + deDupeMessage.getJobId());
             }
         }
     }

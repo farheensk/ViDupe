@@ -12,6 +12,7 @@ import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.musicg.fingerprint.FingerprintSimilarity;
 import com.musicg.fingerprint.FingerprintSimilarityComputer;
+import lombok.extern.slf4j.Slf4j;
 import vidupe.message.DeDupeMessage;
 
 import java.io.UnsupportedEncodingException;
@@ -22,6 +23,7 @@ import java.util.List;
 import static org.apache.http.protocol.HTTP.UTF_8;
 import static vidupe.constants.Constants.*;
 
+@Slf4j
 public class VidupeMessageProcessor implements MessageReceiver {
 
     private VidupeStoreManager vidupeStoreManager;
@@ -38,6 +40,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
 
     @Override
     public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
+        log.info("Received Message:"+message.getMessageId());
         ByteString messageFromFilter = message.getData();
         String messageString = messageFromFilter.toStringUtf8();
         ObjectMapper mapper = new ObjectMapper();
@@ -71,11 +74,13 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     private void writeResultsToDataStore(DeDupeMessage deDupeMessage, DuplicateVideosList duplicateVideosList) throws UnsupportedEncodingException {
+        log.info("Writing results to data store:Start");
         String dataToFile = duplicateVideosList.toJsonString();
         ByteString data = ByteString.copyFromUtf8(dataToFile);
         Storage storage = StorageOptions.getDefaultInstance().getService();
         Bucket bucket = storage.get("vidupe");
         Blob blob = bucket.create(deDupeMessage.getEmail() + "/" + deDupeMessage.getJobId() + "/" + deDupeMessage.getVideoId(), dataToFile.getBytes(UTF_8), "application/json");
+        log.info("Writing results to data store:End");
     }
 
     public ArrayList<Long> convertStringHashesToLong(ArrayList<String> hashes) {
@@ -88,8 +93,10 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     List<VideoHashesInformation> retrieveHashes(DeDupeMessage deDupeMessage) {
+        log.info("Retrieving hashes of user="+deDupeMessage.getEmail()+", videoId="+deDupeMessage.getVideoId()+":Start");
         Key[] videoIdsOfUser = vidupeStoreManager.getVideoIdsOfUser(deDupeMessage.getEmail());
         List<VideoHashesInformation> videoAudioHashesFromStore = vidupeStoreManager.getVideoAudioHashesFromStore(videoIdsOfUser, deDupeMessage.getEmail());
+        log.info("Retrieving hashes of user="+deDupeMessage.getEmail()+", videoId="+deDupeMessage.getVideoId()+":End");
         return videoAudioHashesFromStore;
     }
 

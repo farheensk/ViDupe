@@ -6,6 +6,7 @@ import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.pubsub.v1.SubscriptionName;
+import lombok.extern.slf4j.Slf4j;
 import vidupe.constants.Constants;
 
 import javax.servlet.annotation.WebServlet;
@@ -13,6 +14,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+@Slf4j
 @WebServlet("/dedupe")
 public class DeDupe extends HttpServlet {
 

@@ -7,6 +7,7 @@ import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.drive.Drive;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
@@ -20,8 +21,8 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
+@Slf4j
 public class VideoProcessor {
-    private static final Logger logger = LoggerFactory.getLogger(VideoProcessor.class);
     static Runtime runtime = Runtime.getRuntime();
 
     public Drive getDrive(HashGenMessage message) {
@@ -51,7 +52,7 @@ public class VideoProcessor {
             URL url = new URL("https://www.googleapis.com/drive/v3/files/" + message.getVideoId() + "?alt=media");
             HttpRequest httpRequestGet = drive.getRequestFactory().buildGetRequest(new GenericUrl(url.toString()));
             httpRequestGet.getHeaders().setRange("bytes=" + 0 + "-");
-            logger.debug(httpRequestGet.getHeaders().toString());
+            log.debug(httpRequestGet.getHeaders().toString());
             String extension = FilenameUtils.getExtension(message.getVideoName());
             String videoFileName = "video"+"."+extension;
             String videoPath = pathname + "/" + videoFileName;
@@ -68,7 +69,7 @@ public class VideoProcessor {
                 outputStream.close();
             }
             statusCode = resp.getStatusCode();
-            logger.info("StatusCode=" + statusCode + ", Status=" + resp.getStatusMessage());
+            log.info("StatusCode=" + statusCode + ", Status=" + resp.getStatusMessage());
             String keyFramesPath = pathname + "/" + "keyFrames";
             File keyFramesDirectory = new File(keyFramesPath);
             createDirectory(keyFramesDirectory);
@@ -91,7 +92,7 @@ public class VideoProcessor {
         for (int i = 0; i < 3; i++) {
             success = dir.mkdir();
             if (success) {
-                logger.info("Created directory " + dir.getName());
+                log.info("Created directory " + dir.getName());
                 break;
             }
         }
@@ -144,7 +145,7 @@ public class VideoProcessor {
                 return fileNameInt1 - fileNameInt2;
             }
         });
-        logger.info("num_key_frames=" + list.size());
+        log.info("num_key_frames=" + list.size());
         int size = list.size();
         int i = 0;
         for (File file : list) {

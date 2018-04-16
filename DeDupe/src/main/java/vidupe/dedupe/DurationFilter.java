@@ -1,14 +1,18 @@
 package vidupe.dedupe;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import static vidupe.constants.Constants.ALLOWED_OVERLAP;
 
+@Slf4j
 public class DurationFilter
 {
     public List<VideoHashesInformation>  filterOutDurations(List<VideoHashesInformation> files)
     {
+        log.info("Filtering user drive:Start");
         files.sort(new MapComparator("duration"));
         List<VideoHashesInformation> returnSet = new ArrayList<>();
         int visit[] = new int[files.size()];
@@ -24,6 +28,7 @@ public class DurationFilter
                 returnSet.add(files.get(i));
             }
         }
+        log.info("Filtering user drive:End");
         return returnSet;
     }
 }
