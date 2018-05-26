@@ -4,16 +4,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.batching.BatchingSettings;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.services.drive.Drive;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
-import com.google.pubsub.v1.TopicName;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 import vidupe.constants.Constants;
 import vidupe.message.DeDupeMessage;
 import vidupe.message.HashGenMessage;
@@ -61,10 +61,12 @@ public class VidupeMessageProcessor implements MessageReceiver {
                     vidupeStoreManager.resetUserEntityProperty(hashGenMessage, doneHashgenProcess);
                 }
             }
+            consumer.ack();
         } catch (Exception e) {
-            log.error("Message receive exception: ", e);
+            log.info("Message receive exception: ", e);
+            //consumer.nack();
         }
-        consumer.ack();
+
     }
 
     public ArrayList<Long> convertStringHashesToLong(ArrayList<String> hashes) {
@@ -79,13 +81,25 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     private void publishMessage(DeDupeMessage deDupeMessage) throws Exception {
-        TopicName topicName = TopicName.of(Constants.PROJECT, Constants.PHASHGEN_TOPIC);
+        ProjectTopicName topicName = ProjectTopicName.of(Constants.PROJECT, Constants.PHASHGEN_TOPIC);
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
         try {
-            // Create a publisher instance with default settings bound to the topic
+            // Retry settings control how the publisher handles retryable failures
+//            Duration retryDelay = Duration.ofMillis(100); // default : 1 ms
+//            double retryDelayMultiplier = 2.0; // back off for repeated failures
+//            Duration maxRetryDelay = Duration.ofSeconds(5); // default : 10 seconds
+//
+//            RetrySettings retrySettings = RetrySettings.newBuilder()
+//                    .setInitialRetryDelay(retryDelay)
+//                    .setRetryDelayMultiplier(retryDelayMultiplier)
+//                    .setMaxRetryDelay(maxRetryDelay)
+//                    .build();
+
+                      // Create a publisher instance with default settings bound to the topic
             BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
             publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).build();
+           // publisher = Publisher.newBuilder(topicName).setRetrySettings(retrySettings).setBatchingSettings(batchSettings).build();
             ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
@@ -99,6 +113,10 @@ public class VidupeMessageProcessor implements MessageReceiver {
 
             for (String messageId : messageIds) {
                 log.info("Published message. messageId=" + messageId + ", jobId=" + deDupeMessage.getJobId());
+            }
+            if (publisher != null) {
+                // When finished with the publisher, shutdown to free up resources.
+                publisher.shutdown();
             }
         }
     }

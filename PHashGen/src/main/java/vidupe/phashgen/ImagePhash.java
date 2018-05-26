@@ -64,8 +64,8 @@ public class ImagePhash {
                 image1 = p.getHash(new FileInputStream(new File("/media/farheen/01D26F1D020D3380/sample/thumb720000"+(i+1)+".jpg")));
 
                 image2 = p.getHash(new FileInputStream(new File("/media/farheen/01D26F1D020D3380/sample/thumb240000"+(i+1)+".jpg")));
-                logger.debug(image1+" "+image2);
-                logger.debug("1:2 Score is " + p.distance(image1, image2));
+                logger.info(image1+" "+image2);
+                logger.info("1:2 Score is " + p.distance(image1, image2));
 
             }
         } catch (FileNotFoundException e) {

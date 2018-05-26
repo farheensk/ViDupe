@@ -26,7 +26,8 @@ public class FilterDrive extends HttpServlet {
             StringBuilder list = receiveMessages();
             response.getWriter().print(list);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.info("An exception is raised",e);
+          //  e.printStackTrace();
         }
     }
 
@@ -40,7 +41,7 @@ public class FilterDrive extends HttpServlet {
                     @Override
                     public void failed(Subscriber.State from, Throwable failure) {
                         // Handle failure. This is called when the Subscriber encountered a fatal error and is shutting down.
-                        logger.debug("Subscriber encountered a fatal error:", failure);
+                        logger.error("Subscriber encountered a fatal error:", failure);
                     }
                 },
                 MoreExecutors.directExecutor());

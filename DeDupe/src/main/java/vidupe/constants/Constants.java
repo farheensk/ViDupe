@@ -10,6 +10,7 @@ public class Constants {
     public final static float VIDEO_SIMILARITY = 0.20f;
     public final static float NEAR_VIDEO_SIMILARITY = 0.6f;
     public final static float ALLOWED_OVERLAP = 0.1f;
+    public static final String BUCKET_NAME = "vidupe";
 }
 
 

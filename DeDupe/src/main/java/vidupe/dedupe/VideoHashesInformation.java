@@ -13,6 +13,13 @@ public class VideoHashesInformation {
     String videoID;
     String videoName;
     long duration;
+    String durationString;
+    long videoSizeLong;
+    long videoWidth;
+    long videoHeight;
+    String resolution;
+    String videoSizeString;
+    boolean isBestVideo;
     List<List<String>> hashes;
     long numberOfKeyFrames;
     byte[] audioHashes;

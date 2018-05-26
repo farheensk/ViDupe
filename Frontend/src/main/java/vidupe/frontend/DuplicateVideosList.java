@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.HashMap;
 import java.util.List;
 
 @Data
@@ -12,6 +13,7 @@ import java.util.List;
 public class DuplicateVideosList {
     private VideoHashesInformation referenceVideo;
     private List<VideoHashesInformation> duplicateVideosList;
+    private HashMap<String,String> bestVideoIds;
     public byte[] toBytes() {
         ObjectMapper objectMapper = new ObjectMapper();
         byte[] value = null;

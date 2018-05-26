@@ -39,20 +39,20 @@ public class VideoProcessor {
             ArrayList<String> videoHashes = new ArrayList<>();
             String pathname = String.valueOf(System.currentTimeMillis());
             java.io.File dir = new java.io.File(pathname);
-            if(dir.exists())
-                while (true){
+            while (true){
                     pathname = String.valueOf(System.currentTimeMillis());
                     dir = new File(pathname);
                     if(!(dir.exists())){
-                       // createDirectory(dir);
-                        break;
+                        boolean ifCreated = createDirectory(dir);
+                        if(ifCreated == true)
+                              break;
                     }
             }
-            createDirectory(dir);
+
             URL url = new URL("https://www.googleapis.com/drive/v3/files/" + message.getVideoId() + "?alt=media");
             HttpRequest httpRequestGet = drive.getRequestFactory().buildGetRequest(new GenericUrl(url.toString()));
             httpRequestGet.getHeaders().setRange("bytes=" + 0 + "-");
-            log.debug(httpRequestGet.getHeaders().toString());
+            log.info(httpRequestGet.getHeaders().toString());
             String extension = FilenameUtils.getExtension(message.getVideoName());
             String videoFileName = "video"+"."+extension;
             String videoPath = pathname + "/" + videoFileName;
@@ -87,18 +87,19 @@ public class VideoProcessor {
         return videoAudioHashes;
     }
 
-    private void createDirectory(File dir) {
+    private boolean createDirectory(File dir) {
         boolean success = false;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 10; i++) {
             success = dir.mkdir();
             if (success) {
                 log.info("Created directory " + dir.getName());
                 break;
             }
         }
-        if (!success) {
-            throw new RuntimeException("Couldn't create directory " + dir.getName());
-        }
+//        if (!success) {
+//            throw new RuntimeException("Couldn't create directory " + dir.getName());
+//        }
+        return success;
     }
 
     private void deleteDirectory(String path) {

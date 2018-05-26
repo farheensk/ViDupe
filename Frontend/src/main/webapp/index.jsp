@@ -27,15 +27,27 @@
             <h1 class="displayText">ViDupe- Duplicate Video Detection Service</h1>
     </div>
     <div>
-            <h3>ViDupe scans the user&#39;s google drive (including the trash folder) to detect duplicate video files. </br>
+            <h3>ViDupe scans the user&#39;s google drive to detect duplicate video files. </br>
              Video files that are recently uploaded to the google drive are not scanned, since video related
             information which will not be available immediately after upload. </h3>
             <hr>
             <a href="#" id="load" onclick="loadUrl()">
-                <button class="loginBtn loginBtn--google">Sign in with Google</button>
+               <!-- <button class="loginBtn loginBtn--google">Sign in with Google</button>
+                </br>-->
+                <input type="image" src="red_login3.png" />
             </a>
+           <!-- <button class="loginBtn loginBtn--google">Click here to view privacy policy</button>
+            Click <a href="/ViDupe_Privacy_Policy.html">
+            here
+            <input type="image" src="image2.png" />
+            </a>
+            to view the privacy policy of ViDupe -->
      </div>
      <div class="foot">
+            <h3>click the button below to view the privacy policy of ViDupe</h3>
+            <a href="/ViDupe_Privacy_Policy.html">
+            <input type="image" src="3.png" class="loginBtn loginBtn--google"></input>
+            </a>
              <hr>
              &copy; 2018 University of Washington
          </div>

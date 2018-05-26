@@ -2,14 +2,24 @@ package vidupe.frontend;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.gax.batching.BatchingSettings;
+import com.google.api.gax.core.CredentialsProvider;
+import com.google.api.gax.core.NoCredentialsProvider;
+import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.FixedTransportChannelProvider;
+import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.gson.Gson;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 import vidupe.constants.Constants;
 import vidupe.message.FilterMessage;
 
@@ -27,10 +37,12 @@ import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @WebServlet("/login")
 public class Login extends HttpServlet{
+
     private static final Logger logger = LoggerFactory.getLogger(Delete.class);
 
     public static void publishMessages(FilterMessage message) throws Exception {
@@ -40,8 +52,11 @@ public class Login extends HttpServlet{
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
 
         try {
+            BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
+            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).build();
+
             // Create a publisher instance with default settings bound to the topic
-            publisher = Publisher.newBuilder(topicName).build();
+           // publisher = Publisher.newBuilder(topicName).build();
             ByteString data = ByteString.copyFromUtf8(message.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
 
@@ -124,4 +139,5 @@ public class Login extends HttpServlet{
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
     }
+
 }

@@ -8,12 +8,19 @@ import java.util.List;
 
 @Data
 @Builder
-@JsonIgnoreProperties("hashes")
+@JsonIgnoreProperties({ "hashes", "audioHashes" })
 public class VideoHashesInformation {
     String videoID;
     String videoName;
     long duration;
-    long numberOfKeyFrames;
+    String durationString;
+    long videoSizeLong;
+    long videoWidth;
+    long videoHeight;
+    String resolution;
+    String videoSizeString;
+    boolean isBestVideo;
     List<List<String>> hashes;
-
+    long numberOfKeyFrames;
+    byte[] audioHashes;
 }

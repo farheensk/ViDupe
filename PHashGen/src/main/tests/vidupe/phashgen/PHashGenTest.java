@@ -4,14 +4,16 @@ import com.google.api.core.ApiFuture;
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.cloud.pubsub.v1.Publisher;
+import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
-import com.google.pubsub.v1.TopicName;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import junit.framework.TestCase;
+import org.threeten.bp.Duration;
 import vidupe.constants.Constants;
 
 import java.io.File;
@@ -24,6 +26,7 @@ public class PHashGenTest extends TestCase {
         VideoProcessor pHashGen = new VideoProcessor();
         pHashGen.extractKeyFrames("/media/farheen/01D26F1D020D3380/sample/", "", new File("1920_1080.flv"));
         pHashGen.deleteFile("/media/farheen/01D26F1D020D3380/sample/", "1920_1080.flv");
+
     }
 
     void publishMessages(Map<String, String> attributes) {
@@ -38,7 +41,8 @@ public class PHashGenTest extends TestCase {
             // Similarly for SubscriptionAdminClient
             try {
 
-                TopicName topicName = TopicName.of(Constants.PROJECT, "filter-topic");
+
+                ProjectTopicName topicName = ProjectTopicName.of(Constants.PROJECT, "filter-topic");
 
                 Publisher publisher =
                         Publisher.newBuilder(topicName)

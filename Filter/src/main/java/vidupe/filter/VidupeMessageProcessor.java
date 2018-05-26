@@ -8,6 +8,7 @@ import com.google.api.client.util.DateTime;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.batching.BatchingSettings;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
@@ -25,6 +26,7 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 import vidupe.filter.constants.Constants;
 import vidupe.message.DeDupeMessage;
 import vidupe.message.FilterMessage;
@@ -127,6 +129,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
     }
 
     public void updateUserStatus(FilterMessage filterMessage, int messageCount, int totalVideos, boolean ifPhashgenProcessed, boolean ifDedupeProcessed) {
+
         UserStatus userStatus = UserStatus.builder()
                 .jobId(filterMessage.getJobId())
                 .email(filterMessage.getEmail())
@@ -140,7 +143,7 @@ public class VidupeMessageProcessor implements MessageReceiver {
 
     private void writeResultsToDataStore(String path, String data) throws UnsupportedEncodingException {
         Storage storage = StorageOptions.getDefaultInstance().getService();
-        Bucket bucket = storage.get("vidupe");
+        Bucket bucket = storage.get(Constants.BUCKET_NAME);
         Blob blob = bucket.create(path, data.getBytes(UTF_8), "application/json");
     }
 
@@ -150,9 +153,29 @@ public class VidupeMessageProcessor implements MessageReceiver {
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
 
         try {
+            Duration retryDelay = Duration.ofMillis(100); // default : 1 ms
+            double retryDelayMultiplier = 2.0; // back off for repeated failures
+            Duration maxRetryDelay = Duration.ofSeconds(2); // default : 10 seconds
+
+            RetrySettings retrySettings = RetrySettings.newBuilder()
+                    .setInitialRetryDelay(retryDelay)
+                    .setRetryDelayMultiplier(retryDelayMultiplier)
+                    .setTotalTimeout(Duration.ofMinutes(20))
+                    .setInitialRpcTimeout(Duration.ofSeconds(10))
+                    .setMaxRpcTimeout(Duration.ofSeconds(11))
+                    .setMaxRetryDelay(maxRetryDelay)
+                    .build();
+
+
+
+//            publisher =
+//                    Publisher.newBuilder(topicName)
+//                            .setRetrySettings(retrySettings)
+//                            .build();
             // Create a publisher instance with default settings bound to the topic
             BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
-            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).build();
+            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings)
+                    .setRetrySettings(retrySettings).build();
             ByteString data = ByteString.copyFromUtf8(deDupeMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);
@@ -174,9 +197,22 @@ public class VidupeMessageProcessor implements MessageReceiver {
         Publisher publisher = null;
         List<ApiFuture<String>> messageIdFutures = new ArrayList<>();
         try {
+            Duration retryDelay = Duration.ofMillis(100); // default : 1 ms
+            double retryDelayMultiplier = 2.0; // back off for repeated failures
+            Duration maxRetryDelay = Duration.ofSeconds(2); // default : 10 seconds
+
+            RetrySettings retrySettings = RetrySettings.newBuilder()
+                    .setInitialRetryDelay(retryDelay)
+                    .setRetryDelayMultiplier(retryDelayMultiplier)
+                    .setTotalTimeout(Duration.ofMinutes(20))
+                    .setInitialRpcTimeout(Duration.ofSeconds(10))
+                    .setMaxRpcTimeout(Duration.ofSeconds(11))
+                    .setMaxRetryDelay(maxRetryDelay)
+                    .build();
             // Create a publisher instance with default settings bound to the topic
             BatchingSettings batchSettings = BatchingSettings.newBuilder().setIsEnabled(false).build();
-            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings).build();
+            publisher = Publisher.newBuilder(topicName).setBatchingSettings(batchSettings)
+                    .setRetrySettings(retrySettings).build();
             ByteString data = ByteString.copyFromUtf8(hashGenMessage.toJsonString());
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
             ApiFuture<String> messageIdFuture = publisher.publish(pubsubMessage);

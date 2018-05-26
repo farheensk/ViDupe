@@ -4,6 +4,7 @@ import com.google.api.core.ApiFuture;
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.cloud.pubsub.v1.Publisher;
@@ -12,6 +13,7 @@ import com.google.pubsub.v1.TopicName;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.junit.Test;
+import org.threeten.bp.Duration;
 import vidupe.filter.constants.Constants;
 
 import java.io.IOException;
@@ -59,12 +61,26 @@ public class FilterDriveTest {
             // Set the channel and credentials provider when creating a `TopicAdminClient`.
             // Similarly for SubscriptionAdminClient
             try {
+                Duration retryDelay = Duration.ofMillis(100); // default : 1 ms
+                double retryDelayMultiplier = 2.0; // back off for repeated failures
+                Duration maxRetryDelay = Duration.ofSeconds(5); // default : 10 seconds
+
+                RetrySettings retrySettings = RetrySettings.newBuilder()
+                        .setInitialRetryDelay(retryDelay)
+                        .setRetryDelayMultiplier(retryDelayMultiplier)
+                        .setTotalTimeout(Duration.ofMinutes(5))
+                        .setInitialRpcTimeout(Duration.ofSeconds(10))
+                        .setMaxRpcTimeout(Duration.ofSeconds(11))
+                        .setMaxRetryDelay(maxRetryDelay)
+                        .build();
+
 
                 TopicName topicName = TopicName.of(Constants.PROJECT, "filter-topic");
 
                 Publisher publisher =
                         Publisher.newBuilder(topicName)
                                 .setChannelProvider(channelProvider)
+                                .setRetrySettings(retrySettings)
                                 .setCredentialsProvider(credentialsProvider)
                                 .build();
                 PubsubMessage pubsubMessage = PubsubMessage.newBuilder().putAllAttributes(attributes).build();

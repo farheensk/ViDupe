@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 
 @WebServlet("/Results")
@@ -45,22 +46,22 @@ public class Results extends HttpServlet {
         boolean isServletNeedRefresh = true;
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
-
-        boolean checkIfDeDupeDone = vidupeStoreManager.checkIfDeDupeModuleDone(email, jobId);
-        if (checkIfDeDupeDone) {
-            logger.info("Displaying results: jobId:" + jobId + " ,email:  " + email);
-            isServletNeedRefresh = false;
-            Storage storage = StorageOptions.getDefaultInstance().getService();
-            String directory = email + "/" + jobId;
-          //  Blob blob = storage.get("vidupe", email + "/" + jobId);
-            Page<Blob> blobs = storage.list(Constants.BUCKET_NAME, Storage.BlobListOption.currentDirectory(),
-                    Storage.BlobListOption.prefix(directory));
-            System.out.println(blobs.iterateAll());
-            for (Blob blob : blobs.iterateAll()) {
-                System.out.println(blob.getName());
+        try {
+            boolean checkIfDeDupeDone = vidupeStoreManager.checkIfDeDupeModuleDone(email, jobId);
+            if (checkIfDeDupeDone) {
+                logger.info("Displaying results: jobId:" + jobId + " ,email:  " + email);
+                isServletNeedRefresh = false;
+                Storage storage = StorageOptions.getDefaultInstance().getService();
+                String directory = email + "/" + jobId;
+                //  Blob blob = storage.get("vidupe", email + "/" + jobId);
+                Page<Blob> blobs = storage.list(Constants.BUCKET_NAME, Storage.BlobListOption.currentDirectory(),
+                        Storage.BlobListOption.prefix(directory));
+                System.out.println(blobs.iterateAll());
+                for (Blob blob : blobs.iterateAll()) {
+                    System.out.println(blob.getName());
 //                if (blob != null && blob.exists()) {
                     System.out.println(blob.isDirectory());
-                    if ((blob!=null) && blob.isDirectory()) {
+                    if ((blob != null) && blob.isDirectory()) {
                         String path = directory + "/";
                         Page<Blob> results = storage.list(Constants.BUCKET_NAME, Storage.BlobListOption.currentDirectory(),
                                 Storage.BlobListOption.prefix(path));
@@ -77,9 +78,11 @@ public class Results extends HttpServlet {
                         System.out.println(list);
                         if (list.size() > 0) {
                             String accessToken = vidupeStoreManager.getAccessTokenOfUser(jobId, email);
-                            HashMap<String, String> thumbnailsList = getThumbnailUrl(accessToken);
+                            HashMap<String, HashMap<String, String>> thumbnailsSizesDurations = getThumbnailUrl(accessToken);
                             CombinedDuplicatesList combinedDuplicatesList = CombinedDuplicatesList.builder()
-                                    .duplicateVideosList(list).thumbnails(thumbnailsList).build();
+                                    .duplicateVideosList(list)
+                                    .thumbnails(thumbnailsSizesDurations.get("thumbnails"))
+                                    .build();
                             String duplicates = combinedDuplicatesList.toJsonString();
                             System.out.println(duplicates);
                             request.setAttribute("email", email);
@@ -88,37 +91,42 @@ public class Results extends HttpServlet {
                             request.getRequestDispatcher("/resultsDisplay.jsp").forward(request, response);
 
                         } else {
-                            request.getRequestDispatcher("/noDuplicatesPage.jsp").forward(request,response);
+                            request.getRequestDispatcher("/noDuplicatesPage.jsp").forward(request, response);
                         }
-                    } else if((blob!=null) && blob.exists()) {
+                    } else if ((blob != null) && blob.exists()) {
                         ByteString content = ByteString.copyFrom(blob.getContent());
                         String messageString = content.toStringUtf8();
-                        if(messageString.equals("{}"))
-                             request.getRequestDispatcher("/noDuplicatesPage.jsp").forward(request,response);
-                        else if(messageString.equals("401")){
-                            request.getRequestDispatcher("/somethingWentWrongPage.jsp").forward(request,response);
+                        if (messageString.equals("{}"))
+                            request.getRequestDispatcher("/noDuplicatesPage.jsp").forward(request, response);
+                        else if (messageString.equals("401")) {
+                            request.getRequestDispatcher("/somethingWentWrongPage.jsp").forward(request, response);
                         }
                     }
-               // }
+                    // }
 //
+                }
+            } else {
+                out.println("<html><head>" +
+                        "<title>Results</title>" +
+                        "<link rel='stylesheet' href='style.css'>" +
+                        "</head><body>" +
+                        "<div class='background-top'>" +
+                        "<h1 class='displayText'>ViDupe- Duplicate Video Detection Service</h1>" +
+                        "</div>" +
+                        "<div>");
+                isServletNeedRefresh = true;
+                String loadingGif = "loading.gif";
+                out.println("<h3>Loading your results...please wait...</h3>");
+                out.println("<img src='" + loadingGif + "' style='max-height:150px;max-width:150px;align:middle;'></img>");
+                out.println("</body></html>");
             }
-        } else {
-            out.println("<html><head>"+
-                    "<title>Results</title>"+
-                    "<link rel='stylesheet' href='style.css'>"+
-                    "</head><body>" +
-                    "<div class='background-top'>" +
-                    "<h1 class='displayText'>ViDupe- Duplicate Video Detection Service</h1>" +
-                    "</div>" +
-                    "<div>");
-            isServletNeedRefresh = true;
-            String loadingGif = "loading.gif";
-            out.println("<h3>Loading your results...please wait...</h3>");
-            out.println("<img src='" + loadingGif + "' style='max-height:150px;max-width:150px;align:middle;'></img>");
-            out.println("</body></html>");
+            if (isServletNeedRefresh)
+                response.setIntHeader("Refresh", 5);
         }
-        if (isServletNeedRefresh)
-            response.setIntHeader("Refresh", 5);
+        catch (Exception e){
+            logger.info("Exception",e);
+            request.getRequestDispatcher("/somethingWentWrongPage.jsp").forward(request, response);
+        }
         out.close();
     }
 
@@ -134,7 +142,8 @@ public class Results extends HttpServlet {
         }
     }
 
-    public HashMap<String, String> getThumbnailUrl(String accessToken) throws IOException {
+    public HashMap<String,HashMap<String, String>> getThumbnailUrl(String accessToken) {
+        HashMap<String, HashMap<String, String>> thumbnailsAndSizes = new HashMap<>();
         final List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE,
                 DriveScopes.DRIVE_PHOTOS_READONLY,
                 DriveScopes.DRIVE_FILE,
@@ -145,16 +154,57 @@ public class Results extends HttpServlet {
         GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken).createScoped(SCOPES);
         Drive drive = new Drive.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
                 .setApplicationName("Duplicate video Detection").build();
-        FileList result = drive.files().list().setFields(
-                "files(capabilities/canDownload,id,md5Checksum,mimeType,thumbnailLink,name,size,videoMediaMetadata,webContentLink)")
-                .execute();
-        List<File> files = result.getFiles();
         HashMap<String, String> thumbnails = new HashMap<>();
-        for (File f : files) {
-            thumbnails.put(f.getId(), f.getThumbnailLink());
+        HashMap<String, String> sizes = new HashMap<>();
+        HashMap<String, String> durations = new HashMap<>();
+        try {
+            FileList result = drive.files().list().setFields(
+                    "files(capabilities/canDownload,id,md5Checksum,mimeType,thumbnailLink,name,size,videoMediaMetadata,webContentLink)")
+                    .execute();
+            List<File> files = result.getFiles();
+            for (File f : files) {
+                thumbnails.put(f.getId(), f.getThumbnailLink());
+                 Long videoString = f.getSize();
+                 File.VideoMediaMetadata videoMediaMetadata = f.getVideoMediaMetadata();
+                if(videoString !=null && videoMediaMetadata !=null){
+                    String videoSizeString = humanReadableByteCount(videoString, true);
+                    sizes.put(f.getId(), videoSizeString);
+                    Long durationMillis = videoMediaMetadata.getDurationMillis();
+                    String durationString = getDurationAsString(durationMillis);
+                    durations.put(f.getId(),durationString);
+                }
+
+            }
         }
-        return thumbnails;
+        catch (Exception e){
+            System.out.println(e);
+
+
+        }
+        thumbnailsAndSizes.put("thumbnails",thumbnails);
+        thumbnailsAndSizes.put("sizes",sizes);
+        thumbnailsAndSizes.put("durations",durations);
+        return thumbnailsAndSizes;
     }
 
+    private String getDurationAsString(Long durationMillis) {
+        String vTime = "null";
+        if(durationMillis!=null){
+            vTime = String.format("%02d min, %02d sec",
+                    TimeUnit.MILLISECONDS.toMinutes(durationMillis),
+                    TimeUnit.MILLISECONDS.toSeconds(durationMillis) -
+                            TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(durationMillis))
+            );
+        }
+       return vTime;
+    }
+
+    public String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
+    }
 
 }

@@ -21,7 +21,7 @@ public class VidupeStoreManager {
     }
 
     public Entity findByKey(String id, String ancestorId) {
-        log.debug("Finding key :" + id);
+        log.info("Finding key :" + id);
         Key key = createKey(id, ancestorId);
         Query<Entity> query1 = Query.newEntityQueryBuilder()
                 .setFilter(StructuredQuery.PropertyFilter.eq("__key__", key))
@@ -43,6 +43,8 @@ public class VidupeStoreManager {
                 .set(EntityProperties.VIDEO_NAME, e.getString(EntityProperties.VIDEO_NAME))
                 .set(EntityProperties.DURATION, e.getLong(EntityProperties.DURATION))
                 .set(EntityProperties.LAST_PROCESSED, e.getLong(EntityProperties.LAST_PROCESSED))
+                .set(EntityProperties.HEIGHT, e.getLong(EntityProperties.HEIGHT))
+                .set(EntityProperties.WIDTH, e.getLong(EntityProperties.WIDTH))
                 .set(EntityProperties.VIDEO_LAST_MODIFIED, e.getLong(EntityProperties.VIDEO_LAST_MODIFIED))
                 .set(EntityProperties.EXISTS_IN_DRIVE, e.getBoolean(EntityProperties.EXISTS_IN_DRIVE))
                 .set(EntityProperties.DEDUPE_PROCESS, e.getBoolean(EntityProperties.DEDUPE_PROCESS))
@@ -52,7 +54,7 @@ public class VidupeStoreManager {
                 .build();
         Entity modifiedEntity = datastore.put(task);
         log.info("Entity marked as processed, key=" + e.getKey());
-        log.debug("Modified Entity = " + printEntity(modifiedEntity));
+        log.info("Modified Entity = " + printEntity(modifiedEntity));
     }
 
     private String printEntity(Entity e) {
@@ -126,7 +128,7 @@ public class VidupeStoreManager {
                 break;
             }
         }
-        log.debug("Returning canDedupe=" + canSend);
+        log.info("Returning canDedupe=" + canSend);
         return canSend;
     }
 
@@ -166,7 +168,7 @@ public class VidupeStoreManager {
             while (results.hasNext()){
                 videoIds.add(results.next().getName());
             }
-        log.debug("Returning videoIds of user=" + email);
+        log.info("Returning videoIds of user=" + email);
         return videoIds;
     }
 

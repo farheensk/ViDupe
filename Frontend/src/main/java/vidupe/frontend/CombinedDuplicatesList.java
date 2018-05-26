@@ -13,6 +13,8 @@ import java.util.List;
 @Builder
 public class CombinedDuplicatesList {
     private HashMap<String, String> thumbnails;
+    private HashMap<String,String> sizes;
+    private HashMap<String,String> durations;
     private List<DuplicateVideosList> duplicateVideosList;
     public byte[] toBytes() {
         ObjectMapper objectMapper = new ObjectMapper();

@@ -11,6 +11,7 @@ import vidupe.message.DeDupeMessage;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class VidupeStoreManager {
@@ -36,35 +37,68 @@ public class VidupeStoreManager {
 
     public List<VideoHashesInformation> getVideoAudioHashesFromStore(Key[] videoIdsOfUser, String clientId) {
 
-        log.info("Get Video and Audio hashes of all videos of user:"+clientId+":Start");
+        log.info("Get Video and Audio hashes of all videos of user:" + clientId + ":Start");
         List<VideoHashesInformation> videoAudioHashes = new ArrayList<>();
         for (Key videoId : videoIdsOfUser) {
             VideoHashesInformation video1 = getSingleVideoAudioHashes(clientId, videoId);
             videoAudioHashes.add(video1);
         }
-        log.info("Get Video and Audio hashes of all videos of user:"+clientId+":End");
+        log.info("Get Video and Audio hashes of all videos of user:" + clientId + ":End");
         return videoAudioHashes;
 
     }
 
     public VideoHashesInformation getSingleVideoAudioHashes(String clientId, Key videoId) {
-        log.info("Get Video and Audio hashes of videoId="+videoId.getName()+" :Start");
+        log.info("Get Video and Audio hashes of videoId=" + videoId.getName() + " :Start");
         Entity[] videoEntities = getVideoHashEntities(clientId, videoId);
         List<String> hashes = enityToList(videoEntities);
         Entity e = retrieveVideoEntityInformation(videoId, clientId);
         Entity[] audioEntities = retrieveAudioEntityInformation(videoId, clientId);
         byte[] audioHashes = audioHashesFromBlob(audioEntities);
         List<List<String>> hashesAfterIntraComparison = intraComparison(hashes, threshold);
+        Long videoStringLong = e.getLong(VideoEntityProperties.VIDEO_SIZE);
+        String videoSizeString = humanReadableByteCount(videoStringLong, true);
+        long videoDuration = e.getLong(VideoEntityProperties.DURATION);
+        String videoDurationString = getDurationAsString(videoDuration);
+        long videoHeight = e.getLong(VideoEntityProperties.HEIGHT);
+        long videoWidth = e.getLong(VideoEntityProperties.WIDTH);
+        String resolution = videoWidth + " x " + videoHeight;
         VideoHashesInformation video = VideoHashesInformation.builder()
                 .videoID(videoId.getName())
                 .videoName(e.getString(VideoEntityProperties.VIDEO_NAME))
-                .duration(e.getLong(VideoEntityProperties.DURATION))
+                .videoHeight(videoHeight)
+                .videoWidth(videoWidth)
+                .resolution(resolution)
+                .duration(videoDuration)
+                .durationString(videoDurationString)
+                .videoSizeLong(videoStringLong)
+                .videoSizeString(videoSizeString)
                 .numberOfKeyFrames(hashesAfterIntraComparison.size())
                 .hashes(hashesAfterIntraComparison)
                 .audioHashes(audioHashes)
                 .build();
-        log.info("Get Video and Audio hashes of videoId="+videoId.getName()+" :End");
+        log.info("Get Video and Audio hashes of videoId=" + videoId.getName() + " :End");
         return video;
+    }
+
+    private String getDurationAsString(Long durationMillis) {
+        String vTime = "null";
+        if (durationMillis != null) {
+            vTime = String.format("%02d min, %02d sec",
+                    TimeUnit.MILLISECONDS.toMinutes(durationMillis),
+                    TimeUnit.MILLISECONDS.toSeconds(durationMillis) -
+                            TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(durationMillis))
+            );
+        }
+        return vTime;
+    }
+
+    public String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp - 1) + (si ? "" : "i");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
     }
 
     public byte[] audioHashesFromBlob(Entity[] audioEntities) {
@@ -91,19 +125,19 @@ public class VidupeStoreManager {
     }
 
     public Entity[] retrieveAudioEntityInformation(Key videoId, String clientId) {
-        log.info("Retrieving audio entity information of videoId="+videoId.getName()+":Start");
+        log.info("Retrieving audio entity information of videoId=" + videoId.getName() + ":Start");
         Key ancestorPath = datastore.newKeyFactory().setKind(clientId).newKey(videoId.getName());
         Query<Entity> query = Query.newEntityQueryBuilder().setKind("audio")
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
                 .setOrderBy(StructuredQuery.OrderBy.asc("__key__"))
                 .build();
         QueryResults<Entity> result = this.datastore.run(query);
-        log.info("Retrieving audio entity information of videoId="+videoId.getName()+":End");
+        log.info("Retrieving audio entity information of videoId=" + videoId.getName() + ":End");
         return Iterators.toArray(result, Entity.class);
     }
 
     private Entity retrieveVideoEntityInformation(Key videoId, String clientId) {
-        log.info("Retrieving video entity information of videoId="+videoId.getName()+":Start");
+        log.info("Retrieving video entity information of videoId=" + videoId.getName() + ":Start");
         Key key = createKey(videoId.getName(), clientId);
 
         Query<Entity> query1 = Query.newEntityQueryBuilder()
@@ -116,36 +150,36 @@ public class VidupeStoreManager {
             if (e1.getKey().equals(key))
                 e = e1;
         }
-        log.info("Retrieving video entity information of videoId="+videoId.getName()+":End");
+        log.info("Retrieving video entity information of videoId=" + videoId.getName() + ":End");
         return e;
     }
 
     public Key createKey(String keyName, String ancestorId) {
-        log.info("Creating key with ancestorId:"+ancestorId+", keyName:"+keyName+":Start");
+        log.info("Creating key with ancestorId:" + ancestorId + ", keyName:" + keyName + ":Start");
         Key key = datastore.newKeyFactory()
                 .setKind("videos")
                 .addAncestors(PathElement.of("user", ancestorId))
                 .newKey(keyName);
-        log.info("Creating key with ancestorId:"+ancestorId+", keyName:"+keyName+":End");
+        log.info("Creating key with ancestorId:" + ancestorId + ", keyName:" + keyName + ":End");
         return key;
     }
 
     public Entity[] getVideoHashEntities(String clientId, Key videoId) {
-        log.info("Fetching video hash entities of user:"+clientId+", videoId:"+videoId.getName()+":Start");
+        log.info("Fetching video hash entities of user:" + clientId + ", videoId:" + videoId.getName() + ":Start");
         Key ancestorPath = datastore.newKeyFactory().setKind(clientId).newKey(videoId.getName());
         Query<Entity> query = Query.newEntityQueryBuilder().setKind("VideoHashes")
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
                 .setOrderBy(StructuredQuery.OrderBy.asc("__key__"))
                 .build();
         QueryResults<Entity> result = this.datastore.run(query);
-        log.info("Fetching video hash entities of user:"+clientId+", videoId:"+videoId.getName()+":End");
+        log.info("Fetching video hash entities of user:" + clientId + ", videoId:" + videoId.getName() + ":End");
         return Iterators.toArray(result, Entity.class);
     }
 
     public List<List<String>> intraComparison(List<String> videoHashesList, int threshold) {
         log.info("Intra comparison of video:Start");
         List<List<String>> groupedHashes = new ArrayList<>();
-        if(videoHashesList!=null) {
+        if (videoHashesList != null) {
             int size = videoHashesList.size();
             ComputeHammingDistance computeHammingDistance = new ComputeHammingDistance();
             int[] flag = new int[size];
@@ -191,8 +225,8 @@ public class VidupeStoreManager {
     }
 
     public void changeExitsInDrivePropertyOfVideo(DeDupeMessage deDupeMessage) {
-        log.info("Checking if "+deDupeMessage.getVideoId()+" exists in "+deDupeMessage.getEmail()+
-        " drive:Start");
+        log.info("Checking if " + deDupeMessage.getVideoId() + " exists in " + deDupeMessage.getEmail() +
+                " drive:Start");
         Key ancestorPath = datastore.newKeyFactory().setKind("user").newKey(deDupeMessage.getEmail());
         Query<Entity> query = Query.newEntityQueryBuilder().setKind("videos")
                 .setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorPath))
@@ -205,7 +239,7 @@ public class VidupeStoreManager {
             resetVideoEntityExistsInDriveProperty(e);
         }
 
-        log.info("Checking if "+deDupeMessage.getVideoId()+" exists in "+deDupeMessage.getEmail()+
+        log.info("Checking if " + deDupeMessage.getVideoId() + " exists in " + deDupeMessage.getEmail() +
                 " drive:End");
     }
 
@@ -214,6 +248,8 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_NAME, e.getString(VideoEntityProperties.VIDEO_NAME))
                 .set(VideoEntityProperties.DURATION, e.getLong(VideoEntityProperties.DURATION))
                 .set(VideoEntityProperties.LAST_PROCESSED, e.getLong(VideoEntityProperties.LAST_PROCESSED))
+                .set(VideoEntityProperties.HEIGHT, e.getLong(VideoEntityProperties.HEIGHT))
+                .set(VideoEntityProperties.WIDTH, e.getLong(VideoEntityProperties.WIDTH))
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, e.getLong(VideoEntityProperties.VIDEO_LAST_MODIFIED))
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, false)
                 .set(VideoEntityProperties.DEDUPE_PROCESS, e.getBoolean(VideoEntityProperties.DEDUPE_PROCESS))
@@ -221,10 +257,10 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_SIZE, e.getLong(VideoEntityProperties.VIDEO_SIZE))
                 .set(VideoEntityProperties.NUM_KEYFRAMES, e.getLong(VideoEntityProperties.NUM_KEYFRAMES))
                 .build();
-        for(int i=0;i<3;i++){
+        for (int i = 0; i < 3; i++) {
             datastore.put(task);
             Entity newEntity = datastore.get(e.getKey());
-            if(newEntity.getBoolean(VideoEntityProperties.EXISTS_IN_DRIVE) == false){
+            if (newEntity.getBoolean(VideoEntityProperties.EXISTS_IN_DRIVE) == false) {
                 break;
             }
         }
@@ -244,10 +280,10 @@ public class VidupeStoreManager {
                 .set(UserEntityProperties.CREATED, entity.getTimestamp(UserEntityProperties.CREATED))
                 .set(UserEntityProperties.DONE, entity.getBoolean(UserEntityProperties.DONE))
                 .build();
-        for(int i=0;i<3;i++){
+        for (int i = 0; i < 3; i++) {
             datastore.put(task);
             Entity newEntity = datastore.get(key);
-            if(newEntity.getBoolean(UserEntityProperties.DEDUPE) == doneDedupeProcess){
+            if (newEntity.getBoolean(UserEntityProperties.DEDUPE) == doneDedupeProcess) {
                 break;
             }
         }
@@ -295,7 +331,7 @@ public class VidupeStoreManager {
                 break;
             }
         }
-        log.debug("Returning canDedupe=" + ifProcessed);
+        log.info("Returning canDedupe=" + ifProcessed);
         return ifProcessed;
     }
 
@@ -306,6 +342,8 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_NAME, e.getString(VideoEntityProperties.VIDEO_NAME))
                 .set(VideoEntityProperties.DURATION, e.getLong(VideoEntityProperties.DURATION))
                 .set(VideoEntityProperties.LAST_PROCESSED, e.getLong(VideoEntityProperties.LAST_PROCESSED))
+                .set(VideoEntityProperties.HEIGHT, e.getLong(VideoEntityProperties.HEIGHT))
+                .set(VideoEntityProperties.WIDTH, e.getLong(VideoEntityProperties.WIDTH))
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, e.getLong(VideoEntityProperties.VIDEO_LAST_MODIFIED))
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, e.getBoolean(VideoEntityProperties.EXISTS_IN_DRIVE))
                 .set(VideoEntityProperties.DEDUPE_PROCESS, true)
@@ -313,10 +351,10 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_SIZE, e.getLong(VideoEntityProperties.VIDEO_SIZE))
                 .set(VideoEntityProperties.NUM_KEYFRAMES, e.getLong(VideoEntityProperties.NUM_KEYFRAMES))
                 .build();
-        for(int i=0;i<3;i++){
+        for (int i = 0; i < 3; i++) {
             datastore.put(task);
             Entity newEntity = datastore.get(e.getKey());
-            if(newEntity.getBoolean(VideoEntityProperties.DEDUPE_PROCESS) == true){
+            if (newEntity.getBoolean(VideoEntityProperties.DEDUPE_PROCESS) == true) {
                 break;
             }
         }

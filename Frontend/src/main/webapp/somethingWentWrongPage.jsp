@@ -1,7 +1,7 @@
 <html>
 <head>
-<title>Results</title>
-<link rel='stylesheet' href='style.css'>
+<title>ViDupe-Something went wrong</title>
+<link rel='stylesheet' href='style2.css'>
 </head>
  <body>
  <div class='background-top'>

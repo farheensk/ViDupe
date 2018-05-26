@@ -5,7 +5,7 @@ import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.pubsub.v1.SubscriptionName;
+import com.google.pubsub.v1.ProjectSubscriptionName;
 import lombok.extern.slf4j.Slf4j;
 import vidupe.constants.Constants;
 
@@ -27,7 +27,7 @@ public class DeDupe extends HttpServlet {
     }
 
     public StringBuilder receiveMessages() throws InterruptedException {
-        SubscriptionName subscription = SubscriptionName.of(Constants.PROJECT, Constants.SUBSCRIPTION);
+        ProjectSubscriptionName subscription = ProjectSubscriptionName.of(Constants.PROJECT, Constants.SUBSCRIPTION);
         VidupeStoreManager vidupeStoreManager = new VidupeStoreManager(DatastoreOptions.newBuilder().setNamespace(Constants.NAMESPACE).build().getService());
         MessageReceiver receiver = new VidupeMessageProcessor(vidupeStoreManager);
         Subscriber subscriber = Subscriber.newBuilder(subscription, receiver).build();

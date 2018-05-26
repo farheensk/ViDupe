@@ -41,10 +41,10 @@ public class Delete extends HttpServlet {
                         "</div>"+
                         "<div class='display-section'>"
         );
-        if(request.getParameterValues("video_array")!=null){
-            String [] result = request.getParameterValues("video_array");
-            if(result.length>0){
-                logger.info("Deleting videos of : jobId:"+jobId+" ,email:  "+email);
+        if(request.getParameterValues("video_array")!=null) {
+            String[] result = request.getParameterValues("video_array");
+            if (result.length > 0) {
+                logger.info("Deleting videos of : jobId:" + jobId + " ,email:  " + email);
 
                 List<String> SCOPES = Arrays.asList(DriveScopes.DRIVE);
                 Datastore datastore = DatastoreOptions.newBuilder().setNamespace("vidupe").build().getService();
@@ -52,24 +52,22 @@ public class Delete extends HttpServlet {
                         .setKind("tokens")
                         .addAncestors(PathElement.of("user", email))
                         .newKey(jobId);
-                Entity entity= datastore.get(key);
-                String accessToken=entity.getString("accessToken");
+                Entity entity = datastore.get(key);
+                String accessToken = entity.getString("accessToken");
                 GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken).createScoped(SCOPES);
 
                 Drive drive = new Drive.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
                         .setApplicationName("Duplicate video Detection").build();
-
-                for(String fileId:result){
+                for (String fileId : result) {
                     try {
                         drive.files().delete(fileId).execute();
                     } catch (IOException e) {
                         out.println("<p> Error in deleting the file </p>");
                     }
                 }
-                out.println("<p>Successfully deleted video files</p>");
+                out.println("<h3>Successfully deleted video files</h3>");
             }
         }
-
         else{
             out.println("<p>No files to delete </p>");
         }

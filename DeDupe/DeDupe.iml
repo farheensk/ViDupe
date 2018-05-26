@@ -44,22 +44,21 @@
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.9.3" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.9.0" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-core:2.9.3" level="project" />
-    <orderEntry type="library" name="Maven: com.google.cloud:google-cloud-pubsub:0.35.0-beta" level="project" />
-    <orderEntry type="library" name="Maven: com.google.cloud:google-cloud-core-grpc:1.17.0" level="project" />
-    <orderEntry type="library" name="Maven: io.grpc:grpc-protobuf:1.9.0" level="project" />
-    <orderEntry type="library" name="Maven: io.grpc:grpc-protobuf-lite:1.9.0" level="project" />
-    <orderEntry type="library" name="Maven: io.grpc:grpc-context:1.9.0" level="project" />
-    <orderEntry type="library" name="Maven: com.google.api:gax-grpc:1.19.0" level="project" />
-    <orderEntry type="library" name="Maven: com.google.api.grpc:proto-google-cloud-pubsub-v1:0.1.30" level="project" />
-    <orderEntry type="library" name="Maven: com.google.api.grpc:grpc-google-cloud-pubsub-v1:0.1.30" level="project" />
-    <orderEntry type="library" name="Maven: io.grpc:grpc-netty-shaded:1.9.0" level="project" />
-    <orderEntry type="library" name="Maven: io.grpc:grpc-core:1.9.0" level="project" />
+    <orderEntry type="library" name="Maven: com.google.cloud:google-cloud-pubsub:0.42.1-beta" level="project" />
+    <orderEntry type="library" name="Maven: com.google.cloud:google-cloud-core-grpc:1.24.1" level="project" />
+    <orderEntry type="library" name="Maven: io.grpc:grpc-protobuf:1.10.1" level="project" />
+    <orderEntry type="library" name="Maven: io.grpc:grpc-protobuf-lite:1.10.1" level="project" />
+    <orderEntry type="library" name="Maven: io.grpc:grpc-context:1.10.1" level="project" />
+    <orderEntry type="library" name="Maven: com.google.api:gax-grpc:1.23.0" level="project" />
+    <orderEntry type="library" name="Maven: com.google.api.grpc:proto-google-cloud-pubsub-v1:0.8.0" level="project" />
+    <orderEntry type="library" name="Maven: com.google.api.grpc:grpc-google-cloud-pubsub-v1:0.8.0" level="project" />
+    <orderEntry type="library" name="Maven: io.grpc:grpc-netty-shaded:1.10.1" level="project" />
+    <orderEntry type="library" name="Maven: io.grpc:grpc-core:1.10.1" level="project" />
     <orderEntry type="library" name="Maven: com.google.errorprone:error_prone_annotations:2.1.2" level="project" />
-    <orderEntry type="library" name="Maven: com.google.instrumentation:instrumentation-api:0.4.3" level="project" />
-    <orderEntry type="library" name="Maven: io.opencensus:opencensus-api:0.10.0" level="project" />
-    <orderEntry type="library" name="Maven: io.opencensus:opencensus-contrib-grpc-metrics:0.10.0" level="project" />
-    <orderEntry type="library" name="Maven: io.grpc:grpc-stub:1.9.0" level="project" />
-    <orderEntry type="library" name="Maven: io.grpc:grpc-auth:1.9.0" level="project" />
+    <orderEntry type="library" name="Maven: io.opencensus:opencensus-api:0.11.0" level="project" />
+    <orderEntry type="library" name="Maven: io.opencensus:opencensus-contrib-grpc-metrics:0.11.0" level="project" />
+    <orderEntry type="library" name="Maven: io.grpc:grpc-stub:1.10.1" level="project" />
+    <orderEntry type="library" name="Maven: io.grpc:grpc-auth:1.10.1" level="project" />
     <orderEntry type="library" name="Maven: com.google.auto.value:auto-value:1.4" level="project" />
     <orderEntry type="library" name="Maven: com.google.apis:google-api-services-oauth2:v1-rev138-1.23.0" level="project" />
     <orderEntry type="library" name="Maven: com.google.api-client:google-api-client:1.23.0" level="project" />

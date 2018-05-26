@@ -104,6 +104,8 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_NAME, videoMetaData.getName())
                 .set(VideoEntityProperties.DURATION, videoMetaData.getDuration())
                 .set(VideoEntityProperties.LAST_PROCESSED, Timestamp.now().getSeconds() * 1000)
+                .set(VideoEntityProperties.HEIGHT, videoMetaData.getHeight())
+                .set(VideoEntityProperties.WIDTH, videoMetaData.getWidth())
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, true)
                 .set(VideoEntityProperties.DEDUPE_PROCESS, dedupeProcessed)
@@ -148,6 +150,8 @@ public class VidupeStoreManager {
                 .set(VideoEntityProperties.VIDEO_NAME, e.getString(VideoEntityProperties.VIDEO_NAME))
                 .set(VideoEntityProperties.DURATION, e.getLong(VideoEntityProperties.DURATION))
                 .set(VideoEntityProperties.LAST_PROCESSED, e.getLong(VideoEntityProperties.LAST_PROCESSED))
+                .set(VideoEntityProperties.HEIGHT, e.getLong(VideoEntityProperties.HEIGHT))
+                .set(VideoEntityProperties.WIDTH, e.getLong(VideoEntityProperties.WIDTH))
                 .set(VideoEntityProperties.VIDEO_LAST_MODIFIED, videoLastModified)
                 .set(VideoEntityProperties.EXISTS_IN_DRIVE, value)
                 .set(VideoEntityProperties.DEDUPE_PROCESS, dedupeProcessed)
@@ -226,7 +230,7 @@ public class VidupeStoreManager {
         while (results.hasNext()) {
             videoIds.add(results.next().getName());
         }
-        logger.debug("Returning videoIds of user=" + email);
+        logger.info("Returning videoIds of user=" + email);
         return videoIds;
     }
 }
